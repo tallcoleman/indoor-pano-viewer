@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: api — lint, types, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: tour
+          POSTGRES_PASSWORD: tour
+          POSTGRES_DB: tour_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tour"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Using a service container rather than testcontainers: same Postgres 18,
+      # no Docker-in-Docker. tests/conftest.py falls back to testcontainers locally.
+      TEST_DATABASE_URL: postgresql+psycopg://tour:tour@localhost:5432/tour_test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Tests (100% line + branch coverage gate)
+        run: uv run pytest
+
+      - name: Count "pragma: no cover"
+        if: always()
+        run: |
+          count=$(grep -rn "pragma: no cover" app/ | wc -l | tr -d ' ')
+          echo "\`pragma: no cover\` occurrences in api/app: **$count**" >> "$GITHUB_STEP_SUMMARY"
+          grep -rn "pragma: no cover" app/ >> "$GITHUB_STEP_SUMMARY" || true

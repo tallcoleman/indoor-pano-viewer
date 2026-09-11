@@ -44,8 +44,21 @@ Acceptance:
 - [ ] Migration test passes; `alembic check` reports no drift
 - [ ] CI is green on the PR
 
-As-built:
-<!-- fill in on completion -->
+As-built (2026-09-11):
+
+- **Root scaffold removed** (D1): root `pyproject.toml` and `src/` deleted; `.python-version` moved to `api/.python-version`.
+- **`api/` is a non-package uv project** (`[tool.uv] package = false`). `app` is importable because `api/` is the working directory; nothing is built or installed. The full plan §2 runtime dependency set is installed now (pillow, nh3, markdown-it-py, argon2-cffi, typer are unused until M1–M2) so the lockfile stops churning every slice.
+- **Route prefix lives in the app.** Caddy's `handle /api/*` does not strip the prefix (plan §5), so `health.router` carries `prefix="/api"` and serves `/api/healthz`. Every later router does the same.
+- **503 shape:** `{"status": "error"}` with status 503, set via `Response.status_code` rather than raising, so the body is predictable for the compose healthcheck.
+- **Test client is `fastapi.testclient.TestClient`**, not a bare `httpx.Client` over `ASGITransport` — httpx's ASGI transport is async-only, and the endpoints are sync (D2). `httpx2` is a dev dependency: starlette deprecates `httpx` 0.x for the test client.
+- **`filterwarnings = ["error"]`** in pytest config, with one narrow ignore for a deprecation raised inside starlette's own module body. This caught a leaked psycopg connection in `tests/unit/test_db.py` (caches cleared without disposing the engine); the fixture now disposes it. Any future engine created in a test must be disposed or the suite fails.
+- **Migration tests use a throwaway database** created with `CREATE DATABASE` on the same server and dropped afterwards, so up → down → up cannot disturb the session-scoped schema that the other tests share. Note `URL.__str__` masks the password — use `render_as_string(hide_password=False)`.
+- **Alembic** reads its URL from `config.get_main_option("sqlalchemy.url")` if set (tests set it) and otherwise from `app.config.get_settings()`; `alembic.ini` has no URL. `env.py` also honours `config.attributes["connection"]` so a future test can run migrations on an existing connection. `file_template = %%(rev)s_%%(slug)s`, and `script.py.mako` was rewritten to modern typing (`str | Sequence[str] | None`) so generated migrations pass `mypy --strict`.
+- **`alembic check`** is run both as a test and available as a command; it passes with an empty `Base.metadata` plus the citext extension migration.
+- **Config placeholders:** `app/config.py` owns `EXAMPLE_VALUES`, the set of placeholder strings M0.2's `.env.example` must ship (`change-me-session-secret`, `change-me-postgres-password`). Adding a placeholder to `.env.example` means adding it here too, or nothing rejects it.
+- **CI** runs the `api` job against a `postgres:18` **service container** via `TEST_DATABASE_URL` (no Docker-in-Docker); the testcontainers path stays the local default and is exercised by every local run. The `pragma: no cover` count goes to the job summary. `web` and `compose-smoke` jobs arrive in M0.2.
+- **Gate verified to bite:** deselecting the healthz-503 test drops coverage to 95.77% and fails the run.
+- No plan §14 decisions changed.
 
 ### M0.2 — Compose, Caddy, hello SPA
 
