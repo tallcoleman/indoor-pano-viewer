@@ -44,8 +44,11 @@ Each milestone is split into **slices** (M1.2, M1.3, …). One slice = one branc
 
 Change these only through the decisions log in build plan §14.
 
-- **Python 3.14**, `uv`. **SQLAlchemy 2.0** typed models (pin `<2.1`) + **separate Pydantic v2
-  schemas**. psycopg 3. Alembic.
+- **Python 3.14**, `uv`. The Python project lives in `api/` (no root `pyproject.toml`).
+- **SQLAlchemy 2.0** typed models (pin `<2.1`) + **separate Pydantic v2 schemas**. psycopg 3.
+  Alembic. **Sync** engine, sessions and endpoints; no async DB code.
+- **mypy `--strict`** with the Pydantic plugin (no SQLAlchemy mypy plugin). ruff for lint + format.
+- Root `.env` (gitignored) is the vanilla Compose config, including `COMPOSE_FILE`; `.env.example` is committed.
 - **Postgres 18**, volume mounted at `/var/lib/postgresql` (not `/data`).
 - IDs: UUIDv7 (`uuid.uuid7()` in Python, `server_default uuidv7()` fallback).
 - Multiple floors from day one. Markdown descriptions, rendered and sanitised on the server.
@@ -53,6 +56,8 @@ Change these only through the decisions log in build plan §14.
 - Input panoramas are **GoPro Max 2 JPG, 7680×3840**; anything else is rejected.
 - Opaque DB-backed session cookies. No JWTs.
 - `pnpm` for JS. Vite + React + TypeScript, TanStack Router + Query.
+- **ESLint (flat config) + Prettier** for JS: `typescript-eslint` type-checked, `react-hooks`,
+  `@tanstack/eslint-plugin-query`, `@tanstack/eslint-plugin-router`. Not Biome.
 
 ## Conventions
 

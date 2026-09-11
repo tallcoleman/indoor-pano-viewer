@@ -21,13 +21,13 @@ enforces 100% branch coverage from the first commit.
 
 Settle each one in M0.1 planning, then record it in CLAUDE.md "Locked decisions" or "Conventions".
 
-| # | Decision | Recommendation |
-|---|---|---|
-| D1 | What to do with the `uv init` scaffold at the repo root (`pyproject.toml`, `src/indoor_pano_viewer/`, `.python-version`) | Remove it. The Python project lives in `api/` (plan §10.1). Keep `.python-version` at the root or move it to `api/`. |
-| D2 | Sync or async SQLAlchemy / endpoints | **Sync.** A handful of concurrent viewers doesn't need async; FastAPI runs sync endpoints in a threadpool. Tests stay simpler (no event-loop fixtures, plain SAVEPOINT rollback). |
-| D3 | Type checker | **mypy `--strict`** with the Pydantic plugin; SQLAlchemy 2.0 `Mapped[]` works with it natively. (pyright is a fine alternative; pick one.) |
-| D4 | JS lint/format | **Biome** (one tool, fast) over ESLint + Prettier. |
-| D5 | Where `.env` lives and how `COMPOSE_FILE` is set for vanilla | Root `.env` (gitignored) holding `COMPOSE_FILE=docker-compose.yml:docker-compose.selfhost.yml`; `.env.example` committed. |
+| # | Decision | Status | Outcome |
+|---|---|---|---|
+| D1 | What to do with the `uv init` scaffold at the repo root (`pyproject.toml`, `src/indoor_pano_viewer/`, `.python-version`) | **Decided 2026-09-10** | Remove it. The Python project lives in `api/` (plan §10.1). Keep `.python-version` at the root or move it to `api/`. |
+| D2 | Sync or async SQLAlchemy / endpoints | **Decided 2026-09-10** | **Sync.** A handful of concurrent viewers doesn't need async; FastAPI runs sync endpoints in a threadpool. Tests stay simpler (no event-loop fixtures, plain SAVEPOINT rollback). |
+| D3 | Type checker | **Decided 2026-09-10** | **mypy `--strict`** with the Pydantic plugin. SQLAlchemy 2.0 `Mapped[]` types check natively; don't enable the deprecated `sqlalchemy.ext.mypy` plugin. |
+| D4 | JS lint/format | **Decided 2026-09-10** | **ESLint (flat config) + Prettier.** Plugins: `typescript-eslint` type-checked configs, `eslint-plugin-react-hooks`, `@tanstack/eslint-plugin-query`, `@tanstack/eslint-plugin-router`. Chosen over Biome for the TanStack rules and full type-aware promise rules, which Biome lacks; lint speed doesn't matter at this frontend's size. Look at Oxlint again once its JS plugin support is stable. |
+| D5 | Where `.env` lives and how `COMPOSE_FILE` is set for vanilla | **Decided 2026-09-10** | Root `.env` (gitignored) holding `COMPOSE_FILE=docker-compose.yml:docker-compose.selfhost.yml`; `.env.example` committed. |
 
 ## Slices
 
@@ -60,7 +60,8 @@ As-built:
 ### M0.2 — Compose, Caddy, hello SPA
 
 Scope:
-- `web/`: Vite + React + TS "hello" page, pnpm, Biome, Vitest with one test, `tsc --noEmit`.
+- `web/`: Vite + React + TS "hello" page, pnpm, ESLint + Prettier (D4), Vitest with one test, `tsc --noEmit`.
+  Configure all D4 plugins now, even the TanStack ones before TanStack is used, so the lint setup is final from the first commit.
 - `caddy/Dockerfile` (multi-stage: pnpm build → `caddy:2` with `/srv/www`) and `caddy/Caddyfile` from
   plan §5, but without the `/media/*` block yet (M2). Use `SITE_ADDRESS` and `TRUSTED_PROXY_RANGES`.
   **Check** how Caddy handles an empty `TRUSTED_PROXY_RANGES`; if an empty `static` list is invalid,

@@ -102,6 +102,7 @@ and forwards to `caddy:80`.
 | Frontend | Vite + React + TypeScript | |
 | Routing / data | TanStack Router + TanStack Query | |
 | Viewer | `@photo-sphere-viewer/core` + plugins | Map, Virtual Tour, Markers, Gallery, Compass. |
+| Frontend lint/format | ESLint (flat config) + Prettier | typescript-eslint type-checked, react-hooks, TanStack Query + Router plugins (M0 D4). |
 | Frontend testing | Vitest; Playwright smoke tests | No coverage target. |
 | Package manager | `uv` (Python), `pnpm` (JS) | |
 
@@ -957,6 +958,11 @@ Settled 2026-09-10:
 | — | Postgres version | **18**; revisit 19 after its first minor releases (§2.2) |
 | — | Input images | **GoPro Max 2 JPG only**, 7680×3840 (§1, §6) |
 | — | Test coverage | **100% line + branch on the API**, enforced in CI (§10.2) |
+| — | Repo scaffold | `uv init` root scaffold removed; Python project lives in `api/` (M0 D1) |
+| — | DB access style | **Sync** SQLAlchemy sessions and FastAPI endpoints (M0 D2) |
+| — | Type checker | **mypy `--strict`** + Pydantic plugin (M0 D3) |
+| — | Vanilla compose config | Root `.env` with `COMPOSE_FILE`; `.env.example` committed (M0 D5) |
+| — | JS lint/format | **ESLint + Prettier** with typescript-eslint type-checked, react-hooks and TanStack Query/Router plugins; not Biome (M0 D4) |
 
 ### Still open
 
