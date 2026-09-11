@@ -14,8 +14,9 @@ M0–M5 as-built notes will have changed enough that detail written now would be
 
 ## Known inputs when it starts
 
-- Content CRUD API for tours/floors/nodes/markers/links (moved here from plan §8 if M5 D1 was adopted).
+- Content CRUD API for tours/floors/nodes/markers/links (moved here from plan §8 by M5 D1).
 - The M4 alignment helper is the core of the floorplan canvas; wrap it rather than rewrite it.
-- Export back to `tour.json` is mandatory, so git stays the source of truth.
+- Export back to `tour.json` is mandatory, so `tour.json` stays the source of truth. Extend M4's
+  `export-placements` merge approach to all fields rather than writing a second exporter.
 - Upload path must reuse the M1 image pipeline, including EXIF stripping.
 - Budget: ~5–6.5 days + ~30–40% for tests at 100% API coverage.

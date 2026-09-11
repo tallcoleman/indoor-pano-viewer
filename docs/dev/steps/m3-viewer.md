@@ -83,8 +83,7 @@ As-built:
 
 ### M3.5 — Playwright smoke in CI
 
-Scope: CI builds the compose stack, imports a **synthetic** two-floor tour (generated images, no real
-imagery), creates a code with the CLI, then runs Playwright: unlock → pano renders (canvas present,
+Scope: CI builds the compose stack, imports the committed sample tour (`samples/sample-tour/`, M1 D1), creates a code with the CLI, then runs Playwright: unlock → pano renders (canvas present,
 no failed media requests) → floor switch → logout → `/media/*` 403.
 
 Acceptance:

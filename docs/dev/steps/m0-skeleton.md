@@ -72,6 +72,7 @@ Scope:
   every rule in plan §10.3: `expose` only, healthchecks, `${VAR:?}`, db volume at `/var/lib/postgresql`,
   media named volume, `${IMPORT_HOST_PATH}` bind mount (read-only), `depends_on: service_healthy`.
 - Dev override: Vite on 5173, proxying `/api` and `/media`; db port on localhost.
+- Add `/data/` to `.gitignore`. It holds local import and media data; production tour data never goes in the repo (M1 D1).
 - CI `web` job (lint, typecheck, Vitest) and `compose-smoke` job: `docker compose up --wait`,
   `curl` the SPA and `/api/healthz` through Caddy, then `down` + `up` and check a row written before the restart still exists.
 

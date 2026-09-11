@@ -1,7 +1,8 @@
 # M1 — Data model and import
 
-**Goal:** a real two-floor tour with 3–5 nodes lives in Postgres and the media volume. It gets
-there through an idempotent import CLI, and its images are metadata-free and correctly sized.
+**Goal:** a committed, non-confidential sample tour (two floors, 4–6 nodes) lives in Postgres and
+the media volume. It gets there through an idempotent import CLI, and its images are metadata-free
+and correctly sized. The same CLI imports production tours from a folder outside the repo.
 
 **Plan sections:** §3 (data model), §5 (media layout), §6 (tour.json, CLI, import behaviour,
 image processing), §10.2 (image/CLI test approach), §12.
@@ -10,8 +11,9 @@ image processing), §10.2 (image/CLI test approach), §12.
 
 ## Prerequisites (you)
 
-- [ ] 3–5 real Max 2 JPGs across **two floors**, with GPS **on** for at least one (to prove stripping works).
-- [ ] Floorplan images for those two floors.
+- [ ] 4–6 **non-confidential** Max 2 JPGs across **two floors**, of a place you're happy to have in the
+      repo permanently. These become the committed sample tour (D1).
+- [ ] Simple floorplans for those two floors (hand-drawn and scanned is fine).
 - [ ] `exiftool` installed locally.
 - [ ] Rough `map` coordinates for each node (read from the floorplan in any image editor). They get corrected in M4.
 
@@ -19,7 +21,7 @@ image processing), §10.2 (image/CLI test approach), §12.
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | **Do real images go in git?** The plan says `data/import` is git-tracked (§10.3). The repo is private, but the imagery is confidential: once committed, it's in every clone, every CI checkout, and GitHub's storage for good, and ~10 MB × 100 JPGs will soon hit LFS quotas. | Commit `tour.json` only. Keep source JPGs and floorplans **out of this repo**: gitignore the image files under `data/import/`, and store originals in a private backup. Update plan §10.3 "Backups" to match. |
+| D1 | What tour data lives in the repo | **Decided 2026-09-11.** Two kinds of test data are committed: (1) tiny synthetic images and test JSON generated or stored under `api/tests/fixtures/`, for unit tests; (2) a **sample tour** in `samples/sample-tour/` (full-size real Max 2 JPGs, ~3 MB each, in plain git, no LFS; floorplans; `tour.json`) for local dev, the Playwright smoke test, and checks against real Max 2 files. **Production `tour.json`, photos and floorplans are never required in the repo**; they reach the server through `IMPORT_HOST_PATH`. `/data/` is gitignored. |
 | D2 | CLI framework | **Typer**: subcommands (`import`, `code`, `events`, `editor`) and in-process `CliRunner` tests, so CLI code counts toward coverage. |
 | D3 | Floorplan processing | Strip metadata, keep format and size, record dimensions. No downscale unless a plan is larger than ~8192 px on a side. |
 | D4 | Does the Max 2 write usable heading metadata? (plan §6 step 4) | Decide in M1.5 from real `exiftool` output. Until then, no code for it. |
@@ -98,15 +100,26 @@ Acceptance:
 As-built:
 <!-- fill in on completion -->
 
-### M1.5 — Real data check (you + Claude)
+### M1.5 — Sample tour and real data check (you + Claude)
 
-Scope: `exiftool -G1 -a -xmp:all -exif:all` on a real Max 2 JPG, then decide D4 and record it in plan §14.
-Write the real `tour.json`, import it on local compose, and run `exiftool` on the **output** pano to confirm
-it's clean. Note file sizes and import time in As-built.
+Scope:
+1. Run `exiftool -G1 -a -xmp:all -exif:all` on the **original** JPGs, which stay local and uncommitted.
+   Decide D4 and record it in plan §14. Record the real dimensions and typical file size.
+2. Prepare copies for the repo. Remove real location data (`exiftool -gps:all= -overwrite_original`),
+   then check with `exiftool -a -G1 "-*gps*" "-*location*"` that no location tags remain in EXIF **or XMP**.
+   Write **fake** GPS (e.g. 0°N 0°E) into one sample so the stripping test runs on a real Max 2 file layout.
+3. Commit `samples/sample-tour/` (JPGs, floorplans, `tour.json`). Set `.env.example`
+   `IMPORT_HOST_PATH=./samples` so a fresh clone can import it immediately.
+4. Import on local compose and run `exiftool` on the **output** panoramas.
+5. Import once more from a folder **outside the repo** (absolute `IMPORT_HOST_PATH`) to prove production data needs no repo.
 
 Acceptance:
-- [ ] Real tour imported: two floors, 3–5 nodes
-- [ ] `exiftool` on the output shows no GPS or other location data
+- [ ] Sample tour committed: two floors, 4–6 nodes; no real location data in any committed file
+- [ ] Fresh clone → `docker compose up --wait` → import sample tour works with no extra files
+- [ ] Integration test imports one sample JPG through the pipeline and asserts the fake GPS is gone
+- [ ] `exiftool` on output panoramas shows no GPS or other location data
+- [ ] Import from a directory outside the repo works
+- [ ] Real Max 2 dimensions confirmed; if they aren't 7680×3840, plan §1/§6 and CLAUDE.md updated
 - [ ] D4 recorded in plan §14 (and §6 step 4 updated)
 
 As-built:

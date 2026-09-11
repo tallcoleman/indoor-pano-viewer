@@ -1,7 +1,7 @@
 # M4 — Alignment helper
 
 **Goal:** setting `map_x`, `map_y` and `sphere_pan` takes ~20 s per node, and the results end up
-in `tour.json` so git stays the source of truth.
+in `tour.json`, which stays the source of truth.
 
 **Plan sections:** §7 (entire), §8 (placement endpoint), §11 (why the helper and not a GUI).
 
@@ -11,20 +11,24 @@ in `tour.json` so git stays the source of truth.
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | How values get back into `tour.json` | The plan has a per-node **Copy JSON patch** button. Consider also adding `cli export-placements --tour <slug>`, which writes every node's `map` and `sphere_pan` back into `tour.json` in one go. That's less clipboard work over 100 nodes and only a few dozen lines to test. |
-| D2 | Re-import after aligning | A re-import overwrites DB placement with whatever `tour.json` says. The helper UI shows a warning while DB values differ from the last import, until they've been exported. Needs a "last imported values" comparison (or just a documented rule; decide during planning). |
+| D1 | How values get back into `tour.json` | **Decided 2026-09-11: add `cli export-placements`.** It reads the existing `tour.json`, replaces only each node's `map` and `sphere_pan` with the DB values, and writes the merged file to stdout or `--output`. The import mount is read-only, so it never writes in place. All other fields and key order are kept. Values are rounded (`map` to 0.1 px, `sphere_pan` to 4 decimals) so diffs stay readable. The per-node **Copy JSON patch** button stays for one-off fixes. |
+| D2 | Re-import after aligning | A re-import overwrites DB placement with whatever `tour.json` says. Simplest guard: `export-placements --check` exits non-zero and lists nodes whose DB placement differs from the file, and `import` refuses to overwrite differing placements without `--overwrite-placements`. Decide during planning. |
 
 ## Slices
 
 ### M4.1 — Placement endpoint
 
 Scope: `POST /api/admin/nodes/{id}/placement` with `{map_x, map_y, sphere_pan}`. Editor only, CSRF,
-bounds checked against the node's floor dimensions, `sphere_pan` normalised. Plus D1's CLI if adopted.
+bounds checked against the node's floor dimensions, `sphere_pan` normalised. Plus `cli export-placements` (D1),
+and D2's guard if adopted.
 
 Acceptance:
 - [ ] Viewer → 403; missing CSRF → 403; out-of-bounds → 422; valid → 200 and DB updated
 - [ ] `sphere_pan` outside [−π, π) normalised (tested at the edges)
-- [ ] (If D1) export produces a `tour.json` that imports back to identical placements
+- [ ] Export → re-import round-trips to identical placements
+- [ ] Only `map` and `sphere_pan` change; every other field and the key order are untouched (compared against a fixture)
+- [ ] Nodes in the file but not the DB, and vice versa, are reported, not silently dropped
+- [ ] Output works both to `--output <path>` and to stdout via `docker compose exec -T api … > tour.json`
 
 As-built:
 <!-- fill in on completion -->
@@ -47,12 +51,13 @@ As-built:
 
 Scope: align every node. **First, confirm the link-yaw sign convention (M3 D2)** on a node where you
 know the true direction; if arrows point the mirror-image way, fix the M3 function and its tests before going further.
-Export or paste the values into `tour.json`, re-import, walk the tour.
+Run `export-placements`, save the output over your `tour.json` (the sample tour's in the repo, or
+production's wherever you keep it), re-import, walk the tour.
 
 Acceptance:
 - [ ] Link-yaw convention confirmed (or fixed) and noted in As-built
 - [ ] All nodes aligned; arrows and map cone agree with reality
-- [ ] `tour.json` in git holds the aligned values; a fresh import reproduces them
+- [ ] The saved `tour.json` holds the aligned values; a fresh import reproduces them
 
 As-built:
 <!-- fill in on completion -->

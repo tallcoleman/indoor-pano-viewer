@@ -53,6 +53,11 @@ Change these only through the decisions log in build plan §14.
 - IDs: UUIDv7 (`uuid.uuid7()` in Python, `server_default uuidv7()` fallback).
 - Multiple floors from day one. Markdown descriptions, rendered and sanitised on the server.
 - `access_event` node-level logging is in scope for v1.
+- **Repo data:** only synthetic test fixtures and the non-confidential sample tour in
+  `samples/sample-tour/` are committed. Production `tour.json`, photos and floorplans are never
+  required in the repo; they reach the server through `IMPORT_HOST_PATH`.
+- Media is served only through Caddy `forward_auth` → `/api/internal/media-auth`. No FastAPI file-serving route.
+- v1 admin API = access codes, activity, placement (plus `cli export-placements`). Content CRUD endpoints belong to M6.
 - Input panoramas are **GoPro Max 2 JPG, 7680×3840**; anything else is rejected.
 - Opaque DB-backed session cookies. No JWTs.
 - `pnpm` for JS. Vite + React + TypeScript, TanStack Router + Query.
@@ -79,8 +84,9 @@ Change these only through the decisions log in build plan §14.
 - Each test runs in a SAVEPOINT that is rolled back; build data with `tests/factories.py`.
 - **Coverage is the floor, not the goal.** Security branches get tests that assert behaviour
   (status, body, DB state, cookie attributes), not just tests that run the line.
-- **Fixture images are synthetic and tiny** (generated with Pillow). Never commit real
-  panoramas or floorplans as fixtures: they're confidential.
+- **Unit-test images are synthetic and tiny** (generated with Pillow). The only real photos in
+  the repo are the sample tour in `samples/sample-tour/`: non-confidential, with real location
+  data removed. Never commit production tour data.
 
 ### Security invariants (never break these)
 

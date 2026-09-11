@@ -44,7 +44,9 @@ and to any plain Docker host with `docker compose up`.
 - One `docker-compose.yml` that works **unchanged** on Coolify's Docker Compose build pack
   and on vanilla Docker Compose (see §10.3). No external SaaS dependency for auth.
 - The app is the auth layer. Media is never publicly reachable.
-- Tour definition is reproducible and diffable (lives in git, re-importable).
+- Tour definition is reproducible: DB and media can always be rebuilt by re-importing `tour.json` +
+  images. Production tour data doesn't have to be in this repo (or in git at all); the repo ships
+  only synthetic test fixtures and a small non-confidential sample tour.
 - **The API has 100% line and branch coverage**, enforced in CI (see §10.2).
 
 ---
@@ -373,13 +375,10 @@ reads `location.hash`, POSTs it, then immediately calls
       thumb.jpg
 ```
 
-### MVP: serve from FastAPI
+### Serving through Caddy `forward_auth`
 
-`FileResponse` behind the session dependency. With a handful of concurrent viewers this is
-completely adequate. Check your Starlette version's Range-request support if you later serve
-anything seekable.
-
-### Production: hand off to Caddy
+Media goes through Caddy `forward_auth` from the start (M2). There's no interim FastAPI
+`FileResponse` route: it would need full test coverage only to be deleted later.
 
 ```caddyfile
 {
@@ -487,6 +486,7 @@ the `api` service's **Terminal** tab and drop the `docker compose exec api` pref
 ```bash
 docker compose exec api python -m app.cli import /data/import/tour.json
 docker compose exec api python -m app.cli import /data/import/tour.json --dry-run
+docker compose exec -T api python -m app.cli export-placements /data/import/tour.json > tour.json
 docker compose exec api python -m app.cli reprocess-images --tour building-a
 docker compose exec api python -m app.cli code create --label "Jane Smith — Acme" --expires 30d
 docker compose exec api python -m app.cli code list
@@ -551,7 +551,8 @@ A dev-only mode in the viewer, gated behind an editor session:
 - Arrow keys nudge `sphereCorrection.pan` for the current node (Shift = coarse, plain = fine),
   live, with the map's direction cone visible so you can see when it's right.
 - Clicking the floorplan sets `map_x/map_y` for the current node (on the current node's floor).
-- A floating panel shows the current values and a **Copy JSON patch** button.
+- A floating panel shows the current values and a **Copy JSON patch** button. To write every
+  node back at once, `cli export-placements` merges DB placements into `tour.json` (M4 D1).
 - `n` / `p` step to the next/previous node (in floor order, then gallery order).
 
 This turns a ~3-minute-per-node chore into a ~20-second one. Over 100 nodes that's the
@@ -576,7 +577,8 @@ eventual placement GUI, so you build it once and reuse it.
 
 ### Editor
 - `POST /api/auth/login`, `POST /api/auth/logout`
-- `GET/POST/PATCH/DELETE /api/admin/tours|floors|nodes|markers|links`
+- *(M6, with the GUI; not v1)* `GET/POST/PATCH/DELETE /api/admin/tours|floors|nodes|markers|links`.
+  In v1, content is authored only through `tour.json` import.
 - `GET/POST /api/admin/access-codes`, `POST /api/admin/access-codes/{id}/revoke`
 - `GET /api/admin/access-codes/{id}/activity` → sessions + node-level events, paginated
 - `GET /api/admin/tours/{slug}/activity?node=` → who viewed which nodes, when
@@ -694,8 +696,10 @@ Key configuration points:
 │   │   └── api/                   # generated or hand-written client
 │   │   (tests live next to the code as *.test.ts[x])
 │   └── e2e/                       # Playwright smoke tests against the compose stack
-└── data/
-    ├── import/                    # tour.json + source JPGs (git / git-annex / LFS)
+├── samples/
+│   └── sample-tour/               # committed: non-confidential Max 2 JPGs (real GPS removed), floorplans, tour.json
+└── data/                          # gitignored
+    ├── import/                    # optional local import dir for production-style data
     └── media/                     # processed output (named volume in compose)
 ```
 
@@ -789,14 +793,14 @@ a cookie. No coverage target.
 |---|---|---|
 | `SITE_ADDRESS` | `tour.example.com` | `:80` |
 | `TRUSTED_PROXY_RANGES` | *(empty)* | Coolify's Docker network range, or `private_ranges` |
-| `IMPORT_HOST_PATH` | `./data/import` | absolute host path, e.g. `/srv/pano/import` |
+| `IMPORT_HOST_PATH` | `./samples` for the sample tour, or any host path | absolute host path, e.g. `/srv/pano/import` |
 | Domain | DNS A record → host; Caddy gets the cert | set `https://tour.example.com:80` on the `caddy` service in Coolify |
 
 - **Import directory.** On Coolify, relative bind mounts resolve under
   `/data/coolify/applications/<uuid>/`, and repository files are only there if "Preserve
   Repository During Deployment" is on. Rather than depend on that, bind-mount
-  `${IMPORT_HOST_PATH}` and rsync `data/import` to that path on the server. That also keeps
-  multi-GB JPGs out of every build context.
+  `${IMPORT_HOST_PATH}` and copy the production tour folder (`tour.json`, photos, floorplans) to
+  that path on the server. Production tour data never has to be in this repo.
 - **Named volumes** get a resource prefix on Coolify, so scripts must never hardcode volume
   names. Backups go through `docker compose exec db pg_dump` and through the running `api`
   container's media mount.
@@ -809,8 +813,10 @@ localhost for inspection.
 bake them into an image. `config.py` fails fast at startup if any are missing or still at
 their `.env.example` values (and a test proves it).
 
-**Backups**: `pg_dump` on a cron plus a tar of the media volume. The `data/import` directory
-is your real source of truth — keep it in git (or git-annex / LFS for the images).
+**Backups**: `pg_dump` on a cron plus a tar of the media volume. The import directory
+(production `tour.json`, photos, floorplans) is the real source of truth for content, so back it
+up wherever it lives. A private git repo is a good home for the production `tour.json`, but it
+isn't required and it doesn't belong in this repo.
 `access_event` exists **only** in the database, so if you want activity history to survive,
 the DB backup isn't optional.
 
@@ -843,7 +849,7 @@ Add iteration: you will redo perhaps 20% of nodes after seeing them in context. 
 | Inline `sphere_pan` alignment with live preview | 0.5 d | Reuses the helper |
 | Description/marker editing forms | 0.5–1 d | Marker placement = click-in-panorama, another canvas interaction |
 | Link editing + reordering | 0.5 d | |
-| Export back to `tour.json` | 0.5 d | Needed to keep git as source of truth |
+| Export back to `tour.json` | 0.5 d | Needed to keep `tour.json` as source of truth; extends M4's `export-placements` |
 | **Total** | **~5–6.5 days** | Add ~30–40% for tests to hold 100% API coverage |
 
 ### Verdict
@@ -886,7 +892,7 @@ a month.
 | Codes shared between people | Inherent to code-based auth; mitigate with per-recipient codes, short expiry, and the `access_event` activity view to spot anomalies |
 | `access_event` is attributable personal data | Disclosure on the unlock page; explicit retention period + `events prune` |
 | Media cached by an intermediary | `Cache-Control: private`; TLS everywhere |
-| Blurred regions re-imported over the top | Keep redacted originals in `data/import`, never edit in `data/media` |
+| Blurred regions re-imported over the top | Keep redacted originals in the import directory; never edit processed files in the media volume |
 | Description XSS | Markdown only, raw HTML disabled, `nh3` on output, hostile-input test table |
 | **Postgres 18 volume path** mounted at old `/data` location | Mount at `/var/lib/postgresql`; M0 checks that data survives `docker compose down && up` |
 | Coolify relative bind mounts resolve somewhere unexpected | `IMPORT_HOST_PATH` as an absolute path on Coolify |
@@ -911,12 +917,12 @@ Coolify test app. Confirm Postgres data survives a container recreate on both.
 All models (including `access_event`) and migrations, plus migration tests. `tour.json` schema
 with checks across records for multiple floors. Import CLI with `--dry-run`/`--prune`. Image
 pipeline: JPEG/2:1 check, EXIF read-then-strip, thumbnail, downscale. Inspect a real Max 2 JPG
-with `exiftool`. Import a real tour with 3–5 nodes across **two floors**.
+with `exiftool`. Commit and import the non-confidential sample tour (4–6 nodes across **two floors**).
 
 **M2 — Auth (1.5–2 d)**
 Argon2 hashing, session tables, editor login, access-code create/list/revoke CLI, unlock
 endpoint, cookie handling, CSRF, rate limiting with trusted-proxy handling,
-`/api/internal/media-auth`, media served behind the session. Verify with curl that media 403s
+`/api/internal/media-auth` behind Caddy `forward_auth`. Verify with curl that media 403s
 without a cookie, both directly and through Coolify's proxy.
 
 **M3 — Viewer (1.5–2 d)**
@@ -926,11 +932,11 @@ fragment handling and the logging notice. `POST …/viewed` recording deduplicat
 Playwright smoke test. This is the first demo-able build.
 
 **M4 — Alignment helper (0.5 d)**
-`?align=1` mode, nudge + click-to-place, JSON patch copy, `POST /placement`.
+`?align=1` mode, nudge + click-to-place, JSON patch copy, `POST /placement`, `cli export-placements`.
 **Then align all your real nodes.**
 
 **M5 — Hardening (1 d)**
-Caddy `forward_auth` handoff, security headers, CSP verified against a real panorama load,
+Security headers, CSP verified against a real panorama load, admin access-code and
 activity views (per code and per node), `events prune` + retention setting, backup script,
 error pages.
 
@@ -963,6 +969,10 @@ Settled 2026-09-10:
 | — | Type checker | **mypy `--strict`** + Pydantic plugin (M0 D3) |
 | — | Vanilla compose config | Root `.env` with `COMPOSE_FILE`; `.env.example` committed (M0 D5) |
 | — | JS lint/format | **ESLint + Prettier** with typescript-eslint type-checked, react-hooks and TanStack Query/Router plugins; not Biome (M0 D4) |
+| — | Tour data in the repo | Synthetic test fixtures + non-confidential sample tour (`samples/sample-tour/`, plain git) only. Production `tour.json`/photos/floorplans never required in the repo (M1 D1, 2026-09-11) |
+| — | Media serving | Caddy `forward_auth` from the start; no FastAPI `FileResponse` stage (M2 D1, 2026-09-11) |
+| — | Placement export | `cli export-placements` merges DB `map`/`sphere_pan` into `tour.json` (M4 D1, 2026-09-11) |
+| — | v1 admin API | Access codes, activity, placement only; content CRUD moves to M6 (M5 D1, 2026-09-11) |
 
 ### Still open
 

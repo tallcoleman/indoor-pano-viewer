@@ -13,7 +13,7 @@ access-code and activity endpoints), §10.3 (backups), §12 (whole risk table).
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | **Admin API scope for v1.** Plan §8 lists full CRUD for tours/floors/nodes/markers/links, but no milestone builds it, and JSON import is the authoring path. | v1 admin API = **access codes** (list/create/revoke), **activity** (per code, per node), and **placement** (M4). Move content CRUD to M6 with the GUI. Update plan §8. |
+| D1 | Admin API scope for v1 | **Decided 2026-09-11.** v1 admin API = **access codes** (list/create/revoke), **activity** (per code, per node), and **placement** (M4). Content CRUD for tours/floors/nodes/markers/links moves to M6 with the GUI; JSON import is the v1 authoring path. Plan §8 updated. |
 | D2 | `access_event` retention period (plan §14 open question 1) | Your call. 1 year is a reasonable default for a building survey; 90 days if the audience is external. |
 | D3 | How prune runs on a schedule | Coolify **Scheduled Tasks** running `python -m app.cli events prune` in the `api` container; host cron with `docker compose exec` on vanilla. Both documented in `docs/dev/deploy.md`. No in-process scheduler. |
 | D4 | Backup target | Your call (off-host is the point). Script produces `pg_dump -Fc` + media tarball with a date stamp; where it's copied depends on your storage. |

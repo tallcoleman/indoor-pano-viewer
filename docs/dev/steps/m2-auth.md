@@ -12,7 +12,7 @@ a session allowed to see that tour, on both hosts.
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | **Serve media from FastAPI first (plan §5 "MVP") or go straight to Caddy `forward_auth`?** | **Go straight to `forward_auth`.** Caddy is already in the stack from M0. A `FileResponse` route would need 100% coverage now and deletion in M5. If adopted, change plan §5 and §13 (M5 loses "Caddy handoff"). |
+| D1 | Serve media from FastAPI first, or go straight to Caddy `forward_auth`? | **Decided 2026-09-11: straight to `forward_auth`.** Caddy is already in the stack from M0; a `FileResponse` route would need 100% coverage now and deletion later. Plan §5 and §13 updated. |
 | D2 | Which media a code can reach | A code with `tour_id` can only fetch `/media/tours/<that slug>/…`; a code with null `tour_id` gets every published tour; editors get everything. `media-auth` reads the original path from `X-Forwarded-Uri`. |
 | D3 | CSRF token delivery | Double-submit: non-HttpOnly `csrf_token` cookie set at login; SPA echoes it in `X-CSRF-Token`. Compared in constant time. |
 | D4 | Viewer session lifetime vs code expiry | `session.expires_at = min(now + code lifetime, code.expires_at)`. **Every** request also re-checks `revoked_at` and `expires_at` on the code, so revocation takes effect immediately. |
