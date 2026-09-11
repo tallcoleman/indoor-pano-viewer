@@ -9,5 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
+# Test and coverage artefacts
+.coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
 # Editors
 /.obsidian

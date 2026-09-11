@@ -93,4 +93,21 @@ Change these only through the decisions log in build plan §14.
 
 <!-- Filled in by M0. Keep this list accurate; later slices rely on it. -->
 
-_Not yet created. M0 adds commands for tests, lint, typecheck, migrations, compose up, and CLI._
+All API commands run from `api/`.
+
+| Task | Command |
+|---|---|
+| Install / sync deps | `uv sync` |
+| Tests + coverage gate | `uv run pytest` |
+| Tests against an existing DB | `TEST_DATABASE_URL=postgresql+psycopg://… uv run pytest` |
+| Lint | `uv run ruff check .` |
+| Format (check / write) | `uv run ruff format --check .` / `uv run ruff format .` |
+| Type check | `uv run mypy` |
+| Migrate to head | `uv run alembic upgrade head` |
+| New migration | `uv run alembic revision --autogenerate -m "…"` |
+| Drift check | `uv run alembic check` |
+| Run the app locally | `uv run uvicorn app.main:app --reload` |
+
+Alembic and the app read `DATABASE_URL` and `SESSION_SECRET` from the environment (or `api/.env`). `pytest` does not: it uses `TEST_DATABASE_URL`, or starts a `postgres:18` testcontainer when that is unset.
+
+_Compose and CLI commands are added in M0.2 and M1._
