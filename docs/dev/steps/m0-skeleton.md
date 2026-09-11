@@ -1,20 +1,15 @@
 # M0 — Skeleton
 
-**Goal:** an empty but real stack. Every later slice then only adds features, never
-infrastructure: the three services come up healthy on vanilla Compose and on Coolify, and CI
-enforces 100% branch coverage from the first commit.
+**Goal:** an empty but real stack. Every later slice then only adds features, never infrastructure: the three services come up healthy on vanilla Compose and on Coolify, and CI enforces 100% branch coverage from the first commit.
 
-**Plan sections:** §2 (architecture, stack), §2.2 (Postgres Docker gotcha), §5 (Caddyfile),
-§10 (layout, test strategy, compose rules), §12 (compose-related risks).
+**Plan sections:** §2 (architecture, stack), §2.2 (Postgres Docker gotcha), §5 (Caddyfile), §10 (layout, test strategy, compose rules), §12 (compose-related risks).
 
 **Estimate:** ~1 day.
 
 ## Prerequisites (you)
 
 - [ ] Access to the Coolify instance, plus a hostname you can point at it for a test app.
-- [ ] Choose a vanilla HTTPS target: a spare VPS with DNS, **or** local `SITE_ADDRESS=localhost`
-      (Caddy uses its internal CA; the browser needs to trust it once). Local is enough to
-      prove the file works.
+- [ ] Choose a vanilla HTTPS target: a spare VPS with DNS, **or** local `SITE_ADDRESS=localhost` (Caddy uses its internal CA; the browser needs to trust it once). Local is enough to prove the file works.
 - [ ] GitHub Actions enabled on the repo.
 
 ## Decisions needed
@@ -34,16 +29,11 @@ Settle each one in M0.1 planning, then record it in CLAUDE.md "Locked decisions"
 ### M0.1 — API skeleton, test harness, CI
 
 Scope:
-- Apply D1. Create `api/` with `pyproject.toml` (Python 3.14, deps from plan §2), ruff, type checker config,
-  `[tool.coverage.*]` and `[tool.pytest.ini_options]` exactly as plan §10.2.
-- `app/main.py`, `app/config.py` (pydantic-settings; fail fast on missing or example secrets),
-  `app/db.py` (engine and session dependency), `app/routers/health.py`.
+- Apply D1. Create `api/` with `pyproject.toml` (Python 3.14, deps from plan §2), ruff, type checker config, `[tool.coverage.*]` and `[tool.pytest.ini_options]` exactly as plan §10.2.
+- `app/main.py`, `app/config.py` (pydantic-settings; fail fast on missing or example secrets), `app/db.py` (engine and session dependency), `app/routers/health.py`.
 - `GET /api/healthz`: 200 when the DB answers `SELECT 1`, 503 otherwise.
-- Alembic initialised with a SQLAlchemy `MetaData(naming_convention=…)` so constraint names are
-  deterministic (needed for `alembic check` and clean downgrades). First migration:
-  `CREATE EXTENSION IF NOT EXISTS citext`.
-- `tests/conftest.py`: Postgres 18 via testcontainers (or `TEST_DATABASE_URL`), `alembic upgrade head`
-  once per session, per-test SAVEPOINT rollback, `httpx` client against the ASGI app.
+- Alembic initialised with a SQLAlchemy `MetaData(naming_convention=…)` so constraint names are deterministic (needed for `alembic check` and clean downgrades). First migration: `CREATE EXTENSION IF NOT EXISTS citext`.
+- `tests/conftest.py`: Postgres 18 via testcontainers (or `TEST_DATABASE_URL`), `alembic upgrade head` once per session, per-test SAVEPOINT rollback, `httpx` client against the ASGI app.
 - `tests/migrations/test_migrations.py`: up → down → up, and `alembic check`.
 - `.github/workflows/ci.yml` `api` job: ruff, type check, pytest with the coverage gate, pragma count.
 - Fill in the CLAUDE.md **Commands** section.
@@ -60,21 +50,13 @@ As-built:
 ### M0.2 — Compose, Caddy, hello SPA
 
 Scope:
-- `web/`: Vite + React + TS "hello" page, pnpm, ESLint + Prettier (D4), Vitest with one test, `tsc --noEmit`.
-  Configure all D4 plugins now, even the TanStack ones before TanStack is used, so the lint setup is final from the first commit.
-- `caddy/Dockerfile` (multi-stage: pnpm build → `caddy:2` with `/srv/www`) and `caddy/Caddyfile` from
-  plan §5, but without the `/media/*` block yet (M2). Use `SITE_ADDRESS` and `TRUSTED_PROXY_RANGES`.
-  **Check** how Caddy handles an empty `TRUSTED_PROXY_RANGES`; if an empty `static` list is invalid,
-  use a placeholder or split the global options in a way that still needs no file edits between hosts.
-- `api/Dockerfile`: `python:3.14-slim` + uv; entrypoint runs `alembic upgrade head`, then
-  `uvicorn --proxy-headers --forwarded-allow-ips=…`.
-- `docker-compose.yml`, `docker-compose.selfhost.yml`, `docker-compose.dev.yml`, `.env.example`, following
-  every rule in plan §10.3: `expose` only, healthchecks, `${VAR:?}`, db volume at `/var/lib/postgresql`,
-  media named volume, `${IMPORT_HOST_PATH}` bind mount (read-only), `depends_on: service_healthy`.
+- `web/`: Vite + React + TS "hello" page, pnpm, ESLint + Prettier (D4), Vitest with one test, `tsc --noEmit`. Configure all D4 plugins now, even the TanStack ones before TanStack is used, so the lint setup is final from the first commit.
+- `caddy/Dockerfile` (multi-stage: pnpm build → `caddy:2` with `/srv/www`) and `caddy/Caddyfile` from plan §5, but without the `/media/*` block yet (M2). Use `SITE_ADDRESS` and `TRUSTED_PROXY_RANGES`. **Check** how Caddy handles an empty `TRUSTED_PROXY_RANGES`; if an empty `static` list is invalid, use a placeholder or split the global options in a way that still needs no file edits between hosts.
+- `api/Dockerfile`: `python:3.14-slim` + uv; entrypoint runs `alembic upgrade head`, then `uvicorn --proxy-headers --forwarded-allow-ips=…`.
+- `docker-compose.yml`, `docker-compose.selfhost.yml`, `docker-compose.dev.yml`, `.env.example`, following every rule in plan §10.3: `expose` only, healthchecks, `${VAR:?}`, db volume at `/var/lib/postgresql`, media named volume, `${IMPORT_HOST_PATH}` bind mount (read-only), `depends_on: service_healthy`.
 - Dev override: Vite on 5173, proxying `/api` and `/media`; db port on localhost.
 - Add `/data/` to `.gitignore`. It holds local import and media data; production tour data never goes in the repo (M1 D1).
-- CI `web` job (lint, typecheck, Vitest) and `compose-smoke` job: `docker compose up --wait`,
-  `curl` the SPA and `/api/healthz` through Caddy, then `down` + `up` and check a row written before the restart still exists.
+- CI `web` job (lint, typecheck, Vitest) and `compose-smoke` job: `docker compose up --wait`, `curl` the SPA and `/api/healthz` through Caddy, then `down` + `up` and check a row written before the restart still exists.
 
 Acceptance:
 - [ ] `docker compose up --wait` from a clean clone (with `.env` copied from the example) → all services healthy
@@ -92,12 +74,9 @@ As-built:
 
 Scope:
 - Vanilla: deploy to the chosen target with `SITE_ADDRESS=<host>`; confirm real HTTPS.
-- Coolify: new Docker Compose resource from the repo; set env vars in the UI (`SITE_ADDRESS=:80`, etc.);
-  assign `https://<test-domain>:80` to the `caddy` service.
-- Run `docker network inspect coolify` (or whichever network Coolify attaches) on the server, then set
-  `TRUSTED_PROXY_RANGES` → resolves build plan §14 open question 3.
-- Claude writes `docs/dev/deploy.md`: a runbook for both hosts built from what actually worked, including
-  the Coolify UI settings that aren't in the repo.
+- Coolify: new Docker Compose resource from the repo; set env vars in the UI (`SITE_ADDRESS=:80`, etc.); assign `https://<test-domain>:80` to the `caddy` service.
+- Run `docker network inspect coolify` (or whichever network Coolify attaches) on the server, then set `TRUSTED_PROXY_RANGES` → resolves build plan §14 open question 3.
+- Claude writes `docs/dev/deploy.md`: a runbook for both hosts built from what actually worked, including the Coolify UI settings that aren't in the repo.
 
 Acceptance:
 - [ ] Both hosts serve the hello page and `/api/healthz` over HTTPS

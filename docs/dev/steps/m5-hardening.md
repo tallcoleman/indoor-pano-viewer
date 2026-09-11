@@ -1,11 +1,8 @@
 # M5 — Hardening
 
-**Goal:** safe to hand codes to real people. Security headers verified against real panorama loads,
-editors can manage codes and see activity without a terminal, retention is enforced, and backups
-have been restored at least once.
+**Goal:** safe to hand codes to real people. Security headers verified against real panorama loads, editors can manage codes and see activity without a terminal, retention is enforced, and backups have been restored at least once.
 
-**Plan sections:** §4 (security headers), §3 (`access_event` retention and disclosure), §8 (admin
-access-code and activity endpoints), §10.3 (backups), §12 (whole risk table).
+**Plan sections:** §4 (security headers), §3 (`access_event` retention and disclosure), §8 (admin access-code and activity endpoints), §10.3 (backups), §12 (whole risk table).
 
 **Depends on:** M2–M4.  **Estimate:** ~1 day.
 
@@ -22,9 +19,7 @@ access-code and activity endpoints), §10.3 (backups), §12 (whole risk table).
 
 ### M5.1 — Security headers and CSP
 
-Scope: headers from plan §4 in the Caddyfile. Extend the Playwright smoke test to fail on any CSP
-violation (listen for `securitypolicyviolation` and console errors) while loading a panorama, switching
-floors and opening the side panel. Custom error pages for 403/404/5xx served by Caddy.
+Scope: headers from plan §4 in the Caddyfile. Extend the Playwright smoke test to fail on any CSP violation (listen for `securitypolicyviolation` and console errors) while loading a panorama, switching floors and opening the side panel. Custom error pages for 403/404/5xx served by Caddy.
 
 Acceptance:
 - [ ] `curl -I` shows all four headers on SPA, API and media responses
@@ -36,9 +31,7 @@ As-built:
 
 ### M5.2 — Admin: access codes and activity
 
-Scope: API from D1 (`/api/admin/access-codes`, `…/revoke`, `…/activity`, `/api/admin/tours/{slug}/activity`)
-with pagination. `/admin` UI: code list with last-seen, create (shows code once, with copy-link button that
-builds the `#code=` URL), revoke with confirmation, per-code activity timeline, per-node "who viewed this".
+Scope: API from D1 (`/api/admin/access-codes`, `…/revoke`, `…/activity`, `/api/admin/tours/{slug}/activity`) with pagination. `/admin` UI: code list with last-seen, create (shows code once, with copy-link button that builds the `#code=` URL), revoke with confirmation, per-code activity timeline, per-node "who viewed this".
 
 Acceptance:
 - [ ] All endpoints: viewer → 403, missing CSRF on mutations → 403, pagination boundaries tested
@@ -51,8 +44,7 @@ As-built:
 
 ### M5.3 — Retention
 
-Scope: `ACCESS_EVENT_RETENTION_DAYS` setting; `cli events prune [--older-than]` (defaults to the setting;
-does nothing and says so when unset); D3 scheduling documented and configured on Coolify.
+Scope: `ACCESS_EVENT_RETENTION_DAYS` setting; `cli events prune [--older-than]` (defaults to the setting; does nothing and says so when unset); D3 scheduling documented and configured on Coolify.
 
 Acceptance:
 - [ ] Prune removes exactly the rows older than the cutoff (boundary tested); unset setting → no deletion
@@ -64,8 +56,7 @@ As-built:
 
 ### M5.4 — Backup and restore
 
-Scope: `scripts/backup.sh` using `docker compose exec` (no hardcoded volume names); restore procedure in
-`docs/dev/deploy.md`.
+Scope: `scripts/backup.sh` using `docker compose exec` (no hardcoded volume names); restore procedure in `docs/dev/deploy.md`.
 
 Acceptance:
 - [ ] Backup taken on Coolify and restored into a fresh local stack; tour, codes and activity all present
@@ -76,8 +67,7 @@ As-built:
 
 ### M5.5 — Risk review
 
-Scope: go through every row of plan §12 and record in As-built how it was verified (test name, curl
-command, or manual check). Move resolved open questions into plan §14.
+Scope: go through every row of plan §12 and record in As-built how it was verified (test name, curl command, or manual check). Move resolved open questions into plan §14.
 
 Acceptance:
 - [ ] Every §12 row has a verification noted

@@ -1,10 +1,8 @@
 # M2 — Authentication and protected media
 
-**Goal:** editors log in, viewers unlock with an access code, and `/media/*` only serves files to
-a session allowed to see that tour, on both hosts.
+**Goal:** editors log in, viewers unlock with an access code, and `/media/*` only serves files to a session allowed to see that tour, on both hosts.
 
-**Plan sections:** §4 (entire), §5 (media serving and Caddyfile), §8 (public, editor auth, internal),
-§10.2 (time, rate limiter, proxy header, Argon2 test approach), §12.
+**Plan sections:** §4 (entire), §5 (media serving and Caddyfile), §8 (public, editor auth, internal), §10.2 (time, rate limiter, proxy header, Argon2 test approach), §12.
 
 **Depends on:** M1 (tables and a real tour).  **Estimate:** 1.5–2 days.
 
@@ -23,9 +21,7 @@ a session allowed to see that tour, on both hosts.
 
 ### M2.1 — Security primitives (`app/security.py`)
 
-Scope: Argon2id hasher with parameters from settings; session token generation (`token_urlsafe(32)`) and
-SHA-256 storage; access-code generation (prefix + ≥128-bit secret) and parsing; verification that
-does a dummy Argon2 verify when the prefix doesn't exist; token-bucket limiter.
+Scope: Argon2id hasher with parameters from settings; session token generation (`token_urlsafe(32)`) and SHA-256 storage; access-code generation (prefix + ≥128-bit secret) and parsing; verification that does a dummy Argon2 verify when the prefix doesn't exist; token-bucket limiter.
 
 Acceptance:
 - [ ] Code secret entropy ≥128 bits (asserted from length and alphabet)
@@ -39,10 +35,7 @@ As-built:
 
 ### M2.2 — Editor auth
 
-Scope: `cli editor create` (password via prompt or stdin, never as an argument); `POST /api/auth/login`,
-`/logout`; `ed_session` cookie; session dependency; 12 h sliding expiry; `last_seen_at` throttled to
-once a minute; rotate on login; `is_active` checked on every request; CSRF + JSON content-type
-enforcement for editor mutations; `GET /api/session`.
+Scope: `cli editor create` (password via prompt or stdin, never as an argument); `POST /api/auth/login`, `/logout`; `ed_session` cookie; session dependency; 12 h sliding expiry; `last_seen_at` throttled to once a minute; rotate on login; `is_active` checked on every request; CSRF + JSON content-type enforcement for editor mutations; `GET /api/session`.
 
 Acceptance:
 - [ ] Cookie attributes asserted exactly: `HttpOnly; Secure; SameSite=Lax; Path=/`
@@ -58,8 +51,7 @@ As-built:
 
 ### M2.3 — Access codes and unlock
 
-Scope: `cli code create --label --expires [--tour]` (prints full code once), `code list`, `code revoke`;
-`POST /api/unlock`; `vw_session`; `POST /api/session/logout`; rate limit on unlock; D4 and D5.
+Scope: `cli code create --label --expires [--tour]` (prints full code once), `code list`, `code revoke`; `POST /api/unlock`; `vw_session`; `POST /api/session/logout`; rate limit on unlock; D4 and D5.
 
 Acceptance:
 - [ ] Created code unlocks; the stored row has no plaintext secret anywhere
@@ -74,10 +66,7 @@ As-built:
 
 ### M2.4 — Proxy headers and media auth
 
-Scope: client IP resolution that trusts only the configured proxies; `GET /api/internal/media-auth`
-implementing D2; add the `/media/*` `forward_auth` block to the Caddyfile (D1); `Cache-Control: private`.
-The `internal` route must not be reachable from outside: Caddy must not proxy `/api/internal/*`
-from the public site except through `forward_auth`. Decide how (e.g. `respond 404` for direct requests) and test it.
+Scope: client IP resolution that trusts only the configured proxies; `GET /api/internal/media-auth` implementing D2; add the `/media/*` `forward_auth` block to the Caddyfile (D1); `Cache-Control: private`. The `internal` route must not be reachable from outside: Caddy must not proxy `/api/internal/*` from the public site except through `forward_auth`. Decide how (e.g. `respond 404` for direct requests) and test it.
 
 Acceptance:
 - [ ] `test_proxy_headers.py`: spoofed `X-Forwarded-For` from an untrusted peer is ignored; from a trusted peer it's used

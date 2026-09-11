@@ -1,18 +1,14 @@
 # M1 — Data model and import
 
-**Goal:** a committed, non-confidential sample tour (two floors, 4–6 nodes) lives in Postgres and
-the media volume. It gets there through an idempotent import CLI, and its images are metadata-free
-and correctly sized. The same CLI imports production tours from a folder outside the repo.
+**Goal:** a committed, non-confidential sample tour (two floors, 4–6 nodes) lives in Postgres and the media volume. It gets there through an idempotent import CLI, and its images are metadata-free and correctly sized. The same CLI imports production tours from a folder outside the repo.
 
-**Plan sections:** §3 (data model), §5 (media layout), §6 (tour.json, CLI, import behaviour,
-image processing), §10.2 (image/CLI test approach), §12.
+**Plan sections:** §3 (data model), §5 (media layout), §6 (tour.json, CLI, import behaviour, image processing), §10.2 (image/CLI test approach), §12.
 
 **Depends on:** M0 complete.  **Estimate:** 1.5–2 days.
 
 ## Prerequisites (you)
 
-- [ ] 4–6 **non-confidential** Max 2 JPGs across **two floors**, of a place you're happy to have in the
-      repo permanently. These become the committed sample tour (D1).
+- [ ] 4–6 **non-confidential** Max 2 JPGs across **two floors**, of a place you're happy to have in the repo permanently. These become the committed sample tour (D1).
 - [ ] Simple floorplans for those two floors (hand-drawn and scanned is fine).
 - [ ] `exiftool` installed locally.
 - [ ] Rough `map` coordinates for each node (read from the floorplan in any image editor). They get corrected in M4.
@@ -31,16 +27,11 @@ image processing), §10.2 (image/CLI test approach), §12.
 
 ### M1.1 — Models and migrations
 
-Scope: every table in plan §3, including `access_event`, `access_session` and `editor_session`
-(auth *logic* comes in M2; the tables arrive now so there's a single schema migration history).
-Enums, citext, UUIDv7 defaults, circular FKs with `use_alter`, the `(tour_id, floor_id)` composite FK,
-check constraints, unique constraints, indexes, `ON DELETE SET NULL` on `access_event`.
-`tests/factories.py` for every model.
+Scope: every table in plan §3, including `access_event`, `access_session` and `editor_session` (auth *logic* comes in M2; the tables arrive now so there's a single schema migration history). Enums, citext, UUIDv7 defaults, circular FKs with `use_alter`, the `(tour_id, floor_id)` composite FK, check constraints, unique constraints, indexes, `ON DELETE SET NULL` on `access_event`. `tests/factories.py` for every model.
 
 Acceptance:
 - [ ] Migration up → down → up passes; `alembic check` clean
-- [ ] DB-level tests prove each constraint rejects bad data: node on another tour's floor, duplicate slug
-      within a tour (and the same slug allowed across tours), link to itself, duplicate link, negative `map_x`
+- [ ] DB-level tests prove each constraint rejects bad data: node on another tour's floor, duplicate slug within a tour (and the same slug allowed across tours), link to itself, duplicate link, negative `map_x`
 - [ ] Deleting a node sets `access_event.node_id` to null and keeps `node_slug`; deleting a session sets `access_session_id` to null
 - [ ] `citext`: `editor.email` uniqueness ignores case
 - [ ] Python `uuid7` default and DB `uuidv7()` default both produce v7 UUIDs
@@ -50,11 +41,7 @@ As-built:
 
 ### M1.2 — `tour.json` schema and validation
 
-Scope: Pydantic models for the file in plan §6, including links written either as a slug or as
-`{to, yaw}`. Validation across records, reporting **all** errors at once: unknown floor, unknown
-link target, link between floors without `yaw`, `default_node` missing or on the wrong floor,
-duplicate slugs. Pure code, no DB and no image I/O. Map bounds need image dimensions, so the
-check that uses them takes the dimensions as input and runs in M1.4.
+Scope: Pydantic models for the file in plan §6, including links written either as a slug or as `{to, yaw}`. Validation across records, reporting **all** errors at once: unknown floor, unknown link target, link between floors without `yaw`, `default_node` missing or on the wrong floor, duplicate slugs. Pure code, no DB and no image I/O. Map bounds need image dimensions, so the check that uses them takes the dimensions as input and runs in M1.4.
 
 Acceptance:
 - [ ] `tests/fixtures/tours/valid-multi-floor.json` validates
@@ -66,10 +53,7 @@ As-built:
 
 ### M1.3 — Image pipeline (`app/media.py`)
 
-Scope: plan §6 steps 1–7 for panoramas, D3 for floorplans. Synthetic fixtures are generated in
-test setup: a tiny 2:1 JPEG with GPS EXIF and `DateTimeOriginal`, a non-2:1 JPEG, a PNG renamed to
-`.jpg`, a truncated JPEG, and an image over the pixel limit (use a small patched
-`MAX_IMAGE_PIXELS` rather than a huge file).
+Scope: plan §6 steps 1–7 for panoramas, D3 for floorplans. Synthetic fixtures are generated in test setup: a tiny 2:1 JPEG with GPS EXIF and `DateTimeOriginal`, a non-2:1 JPEG, a PNG renamed to `.jpg`, a truncated JPEG, and an image over the pixel limit (use a small patched `MAX_IMAGE_PIXELS` rather than a huge file).
 
 Acceptance:
 - [ ] Output has **no** EXIF/XMP/GPS (asserted by reading the output back)
@@ -83,10 +67,7 @@ As-built:
 
 ### M1.4 — Import CLI
 
-Scope: `python -m app.cli import <tour.json> [--dry-run] [--prune]` and `reprocess-images --tour`.
-Resolve paths relative to the JSON file, check image existence and map bounds (using floorplan
-dimensions), run the pipeline, upsert by slug in one transaction, and report nodes present in the
-DB but missing from the file. Links are stored with `yaw_override` only where the file gives `yaw`.
+Scope: `python -m app.cli import <tour.json> [--dry-run] [--prune]` and `reprocess-images --tour`. Resolve paths relative to the JSON file, check image existence and map bounds (using floorplan dimensions), run the pipeline, upsert by slug in one transaction, and report nodes present in the DB but missing from the file. Links are stored with `yaw_override` only where the file gives `yaw`.
 
 Acceptance:
 - [ ] Importing the valid fixture creates the expected rows and media files at the §5 paths
@@ -103,13 +84,9 @@ As-built:
 ### M1.5 — Sample tour and real data check (you + Claude)
 
 Scope:
-1. Run `exiftool -G1 -a -xmp:all -exif:all` on the **original** JPGs, which stay local and uncommitted.
-   Decide D4 and record it in plan §14. Record the real dimensions and typical file size.
-2. Prepare copies for the repo. Remove real location data (`exiftool -gps:all= -overwrite_original`),
-   then check with `exiftool -a -G1 "-*gps*" "-*location*"` that no location tags remain in EXIF **or XMP**.
-   Write **fake** GPS (e.g. 0°N 0°E) into one sample so the stripping test runs on a real Max 2 file layout.
-3. Commit `samples/sample-tour/` (JPGs, floorplans, `tour.json`). Set `.env.example`
-   `IMPORT_HOST_PATH=./samples` so a fresh clone can import it immediately.
+1. Run `exiftool -G1 -a -xmp:all -exif:all` on the **original** JPGs, which stay local and uncommitted. Decide D4 and record it in plan §14. Record the real dimensions and typical file size.
+2. Prepare copies for the repo. Remove real location data (`exiftool -gps:all= -overwrite_original`), then check with `exiftool -a -G1 "-*gps*" "-*location*"` that no location tags remain in EXIF **or XMP**. Write **fake** GPS (e.g. 0°N 0°E) into one sample so the stripping test runs on a real Max 2 file layout.
+3. Commit `samples/sample-tour/` (JPGs, floorplans, `tour.json`). Set `.env.example` `IMPORT_HOST_PATH=./samples` so a fresh clone can import it immediately.
 4. Import on local compose and run `exiftool` on the **output** panoramas.
 5. Import once more from a folder **outside the repo** (absolute `IMPORT_HOST_PATH`) to prove production data needs no repo.
 
@@ -127,5 +104,4 @@ As-built:
 
 ## Out of scope
 
-Auth and access-code CLI (M2). Any HTTP endpoint for tour data (M3). Markdown rendering (M3).
-Computing link yaw from geometry (M3).
+Auth and access-code CLI (M2). Any HTTP endpoint for tour data (M3). Markdown rendering (M3). Computing link yaw from geometry (M3).

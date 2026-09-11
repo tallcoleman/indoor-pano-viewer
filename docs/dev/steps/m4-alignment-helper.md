@@ -1,7 +1,6 @@
 # M4 — Alignment helper
 
-**Goal:** setting `map_x`, `map_y` and `sphere_pan` takes ~20 s per node, and the results end up
-in `tour.json`, which stays the source of truth.
+**Goal:** setting `map_x`, `map_y` and `sphere_pan` takes ~20 s per node, and the results end up in `tour.json`, which stays the source of truth.
 
 **Plan sections:** §7 (entire), §8 (placement endpoint), §11 (why the helper and not a GUI).
 
@@ -18,9 +17,7 @@ in `tour.json`, which stays the source of truth.
 
 ### M4.1 — Placement endpoint
 
-Scope: `POST /api/admin/nodes/{id}/placement` with `{map_x, map_y, sphere_pan}`. Editor only, CSRF,
-bounds checked against the node's floor dimensions, `sphere_pan` normalised. Plus `cli export-placements` (D1),
-and D2's guard if adopted.
+Scope: `POST /api/admin/nodes/{id}/placement` with `{map_x, map_y, sphere_pan}`. Editor only, CSRF, bounds checked against the node's floor dimensions, `sphere_pan` normalised. Plus `cli export-placements` (D1), and D2's guard if adopted.
 
 Acceptance:
 - [ ] Viewer → 403; missing CSRF → 403; out-of-bounds → 422; valid → 200 and DB updated
@@ -35,9 +32,7 @@ As-built:
 
 ### M4.2 — Align mode UI
 
-Scope: `?align=1`, only for editor sessions (ignored for viewers). Arrow keys nudge pan (Shift = coarse)
-with the direction cone live; clicking the floorplan sets the map position; the floating panel shows the
-values with Copy JSON patch and Save (calls M4.1); `n`/`p` step through nodes in floor order, then gallery order.
+Scope: `?align=1`, only for editor sessions (ignored for viewers). Arrow keys nudge pan (Shift = coarse) with the direction cone live; clicking the floorplan sets the map position; the floating panel shows the values with Copy JSON patch and Save (calls M4.1); `n`/`p` step through nodes in floor order, then gallery order.
 
 Acceptance:
 - [ ] Vitest: key handling (fine vs coarse step, wrap-around), patch generation, node ordering across floors
@@ -49,10 +44,7 @@ As-built:
 
 ### M4.3 — Align the real tour (you)
 
-Scope: align every node. **First, confirm the link-yaw sign convention (M3 D2)** on a node where you
-know the true direction; if arrows point the mirror-image way, fix the M3 function and its tests before going further.
-Run `export-placements`, save the output over your `tour.json` (the sample tour's in the repo, or
-production's wherever you keep it), re-import, walk the tour.
+Scope: align every node. **First, confirm the link-yaw sign convention (M3 D2)** on a node where you know the true direction; if arrows point the mirror-image way, fix the M3 function and its tests before going further. Run `export-placements`, save the output over your `tour.json` (the sample tour's in the repo, or production's wherever you keep it), re-import, walk the tour.
 
 Acceptance:
 - [ ] Link-yaw convention confirmed (or fixed) and noted in As-built

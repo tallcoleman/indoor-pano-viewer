@@ -1,10 +1,8 @@
 # M3 — Viewer
 
-**Goal:** the first demo-able build. A viewer unlocks with a code, walks the real two-floor tour
-using map hotspots, arrows, gallery and floor switcher, and every node view is logged.
+**Goal:** the first demo-able build. A viewer unlocks with a code, walks the real two-floor tour using map hotspots, arrows, gallery and floor switcher, and every node view is logged.
 
-**Plan sections:** §3 (`link`, `access_event` rules), §8 (viewer endpoints), §9 (entire), §10.2
-(frontend testing), §4 (fragment handling).
+**Plan sections:** §3 (`link`, `access_event` rules), §8 (viewer endpoints), §9 (entire), §10.2 (frontend testing), §4 (fragment handling).
 
 **Depends on:** M1, M2.  **Estimate:** 1.5–2 days.
 
@@ -21,11 +19,7 @@ using map hotspots, arrows, gallery and floor switcher, and every node view is l
 
 ### M3.1 — Markdown and tour payload
 
-Scope: `app/markdown.py` (markdown-it-py with HTML disabled → `nh3`), the link-yaw function (D2),
-`GET /api/tours/{slug}` returning a payload shaped for `VirtualTourPlugin.setNodes()`: floors (image URL,
-dimensions, default node), nodes (pano and thumb URLs, map position, `sphere_pan`, default view,
-`description_html`, markers with rendered content, links with yaw), and the tour's default node.
-Access rules: D3, plus code `tour_id` scoping from M2.
+Scope: `app/markdown.py` (markdown-it-py with HTML disabled → `nh3`), the link-yaw function (D2), `GET /api/tours/{slug}` returning a payload shaped for `VirtualTourPlugin.setNodes()`: floors (image URL, dimensions, default node), nodes (pano and thumb URLs, map position, `sphere_pan`, default view, `description_html`, markers with rendered content, links with yaw), and the tour's default node. Access rules: D3, plus code `tour_id` scoping from M2.
 
 Acceptance:
 - [ ] Hostile Markdown table (plan §10.2) produces safe output; ordinary Markdown (emphasis, lists, links) survives
@@ -53,9 +47,7 @@ As-built:
 
 ### M3.3 — Web shell: routing, unlock, login
 
-Scope: TanStack Router routes from plan §9; API client (D1); session query; `/unlock` with
-`#code=` handling (POST, then `history.replaceState`), plus the "access is logged" notice; `/login`;
-redirects based on `GET /api/session`.
+Scope: TanStack Router routes from plan §9; API client (D1); session query; `/unlock` with `#code=` handling (POST, then `history.replaceState`), plus the "access is logged" notice; `/login`; redirects based on `GET /api/session`.
 
 Acceptance:
 - [ ] Vitest: fragment is read, POSTed, and stripped from the URL even when unlock fails
@@ -67,10 +59,7 @@ As-built:
 
 ### M3.4 — Viewer
 
-Scope: PSV with Virtual Tour (manual mode), Map, Markers, Gallery, and optional Compass; custom floor
-switcher; `withCredentials`; per-node `sphereCorrection`; Map `setImage()` and hotspot replacement
-on floor change; description in the side panel; `keepalive` fetch to `…/viewed` on `node-changed`;
-neighbour preloading on idle.
+Scope: PSV with Virtual Tour (manual mode), Map, Markers, Gallery, and optional Compass; custom floor switcher; `withCredentials`; per-node `sphereCorrection`; Map `setImage()` and hotspot replacement on floor change; description in the side panel; `keepalive` fetch to `…/viewed` on `node-changed`; neighbour preloading on idle.
 
 Acceptance:
 - [ ] Vitest: payload → PSV node transform; floor change detection; hotspots limited to the current floor
@@ -83,8 +72,7 @@ As-built:
 
 ### M3.5 — Playwright smoke in CI
 
-Scope: CI builds the compose stack, imports the committed sample tour (`samples/sample-tour/`, M1 D1), creates a code with the CLI, then runs Playwright: unlock → pano renders (canvas present,
-no failed media requests) → floor switch → logout → `/media/*` 403.
+Scope: CI builds the compose stack, imports the committed sample tour (`samples/sample-tour/`, M1 D1), creates a code with the CLI, then runs Playwright: unlock → pano renders (canvas present, no failed media requests) → floor switch → logout → `/media/*` 403.
 
 Acceptance:
 - [ ] Smoke job green in CI and runnable locally with one documented command (added to CLAUDE.md Commands)

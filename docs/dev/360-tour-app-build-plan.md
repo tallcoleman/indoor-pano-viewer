@@ -1,9 +1,6 @@
 # Indoor 360° Tour App — Build Plan
 
-A self-hosted web app for displaying 360° panoramas positioned on a building floorplan,
-behind authentication. FastAPI + Postgres + Vite/React SPA + Caddy. The same
-`docker-compose.yml` deploys to a self-hosted Coolify instance (Docker Compose build pack)
-and to any plain Docker host with `docker compose up`.
+A self-hosted web app for displaying 360° panoramas positioned on a building floorplan, behind authentication. FastAPI + Postgres + Vite/React SPA + Caddy. The same `docker-compose.yml` deploys to a self-hosted Coolify instance (Docker Compose build pack) and to any plain Docker host with `docker compose up`.
 
 ---
 
@@ -13,10 +10,8 @@ and to any plain Docker host with `docker compose up`.
 
 - Display equirectangular 360° panoramas using [Photo Sphere Viewer](https://photo-sphere-viewer.js.org/) (MIT).
 - Position panoramas on **non-georeferenced** floorplan images via the Map plugin.
-- **Multi-floor from day one**: every node belongs to a floor; the map changes when you move
-  between floors.
-- Navigate between panoramas via floorplan hotspots, arrow links (including between floors),
-  and a thumbnail gallery.
+- **Multi-floor from day one**: every node belongs to a floor; the map changes when you move between floors.
+- Navigate between panoramas via floorplan hotspots, arrow links (including between floors), and a thumbnail gallery.
 - Per-panorama **Markdown** descriptions and in-panorama markers.
 - **Editors**: real accounts (email + password) for anyone who administers the tour.
 - **Viewers**: unique, revocable, individually-attributable access codes. No accounts.
@@ -26,27 +21,22 @@ and to any plain Docker host with `docker compose up`.
 
 ### Input assumptions (v1)
 
-- All panoramas are **JPG files from a GoPro Max 2**: 29 MP, 7680×3840, 2:1 equirectangular.
-  The import pipeline is built for exactly this and rejects anything else (see §6).
+- All panoramas are **JPG files from a GoPro Max 2**: 29 MP, 7680×3840, 2:1 equirectangular. The import pipeline is built for exactly this and rejects anything else (see §6).
 - Floorplans are PNG (or JPG) raster images.
 
 ### Out of scope (v1)
 
 - 360° video (host separately, e.g. unlisted YouTube; optionally embed a link as a marker).
-- Other cameras and formats (HEIC, raw, dual-fisheye). The input check is one function, so
-  adding them later is easy.
+- Other cameras and formats (HEIC, raw, dual-fisheye). The input check is one function, so adding them later is easy.
 - Multi-building / multi-tenant management (schema allows it; UI does not).
 - Image blurring/redaction (done externally in GIMP before import).
 - Placement GUI (see §11 for the effort analysis and the recommended interim tool).
 
 ### Non-negotiables
 
-- One `docker-compose.yml` that works **unchanged** on Coolify's Docker Compose build pack
-  and on vanilla Docker Compose (see §10.3). No external SaaS dependency for auth.
+- One `docker-compose.yml` that works **unchanged** on Coolify's Docker Compose build pack and on vanilla Docker Compose (see §10.3). No external SaaS dependency for auth.
 - The app is the auth layer. Media is never publicly reachable.
-- Tour definition is reproducible: DB and media can always be rebuilt by re-importing `tour.json` +
-  images. Production tour data doesn't have to be in this repo (or in git at all); the repo ships
-  only synthetic test fixtures and a small non-confidential sample tour.
+- Tour definition is reproducible: DB and media can always be rebuilt by re-importing `tour.json` + images. Production tour data doesn't have to be in this repo (or in git at all); the repo ships only synthetic test fixtures and a small non-confidential sample tour.
 - **The API has 100% line and branch coverage**, enforced in CI (see §10.2).
 
 ---
@@ -78,14 +68,9 @@ and to any plain Docker host with `docker compose up`.
                         └─────────────┘
 ```
 
-**Single origin.** Caddy serves the SPA, the API and the media from the same hostname.
-No CORS, cookies work without `SameSite=None`, and Photo Sphere Viewer only needs
-`withCredentials: true` rather than injecting bearer tokens into the texture loader.
+**Single origin.** Caddy serves the SPA, the API and the media from the same hostname. No CORS, cookies work without `SameSite=None`, and Photo Sphere Viewer only needs `withCredentials: true` rather than injecting bearer tokens into the texture loader.
 
-**Why keep Caddy on Coolify?** Coolify's own proxy could do the routing and forward-auth
-through labels, but those labels mean nothing on a plain Docker host. Keeping Caddy inside
-the stack puts all routing and auth in one portable file. Coolify's proxy only terminates TLS
-and forwards to `caddy:80`.
+**Why keep Caddy on Coolify?** Coolify's own proxy could do the routing and forward-auth through labels, but those labels mean nothing on a plain Docker host. Keeping Caddy inside the stack puts all routing and auth in one portable file. Coolify's proxy only terminates TLS and forwards to `caddy:80`.
 
 ### Stack choices
 
@@ -110,9 +95,7 @@ and forwards to `caddy:80`.
 
 ### 2.1 ORM: SQLAlchemy 2.0 vs SQLModel
 
-SQLModel is a layer on top of SQLAlchemy and Pydantic. One class is both the table and the
-Pydantic model. So the real question is whether that merging helps this schema or gets in
-its way.
+SQLModel is a layer on top of SQLAlchemy and Pydantic. One class is both the table and the Pydantic model. So the real question is whether that merging helps this schema or gets in its way.
 
 | Concern | SQLAlchemy 2.0 | SQLModel |
 |---|---|---|
@@ -126,15 +109,11 @@ its way.
 | Docs | Big and dense, but covers everything. | Friendly tutorials; for anything advanced it sends you to the SQLAlchemy docs. |
 | Effect on 100% coverage | Neutral. Coverage measures your code, and neither library adds branches you'd have to test. | Neutral. |
 
-**Decision: SQLAlchemy 2.0.** This schema has most of what SQLModel handles poorly: three hash
-columns that must never be serialised, `citext`, enums, UUIDv7 defaults, per-tour composite
-uniqueness, and a circular FK. SQLModel would win on a flat CRUD app where each table is
-basically the API response. This project isn't that.
+**Decision: SQLAlchemy 2.0.** This schema has most of what SQLModel handles poorly: three hash columns that must never be serialised, `citext`, enums, UUIDv7 defaults, per-tour composite uniqueness, and a circular FK. SQLModel would win on a flat CRUD app where each table is basically the API response. This project isn't that.
 
 ### 2.2 Postgres version
 
-Postgres has **no LTS release**. Every major version gets 5 years of fixes. As of
-September 2026:
+Postgres has **no LTS release**. Every major version gets 5 years of fixes. As of September 2026:
 
 | Version | Released | End of life |
 |---|---|---|
@@ -143,23 +122,15 @@ September 2026:
 | 17 | Sept 2024 | Nov 2029 |
 | 16 | Sept 2023 | Nov 2028 |
 
-**Use 18** (`postgres:18`, which tracks the latest minor release). It's the newest production
-release, gives the longest support window you can get today, and has a native `uuidv7()`
-function that matches the ID strategy in §3. Plan a move to 19 after its first couple of
-minor releases. At this data size a `pg_dump`/restore upgrade takes minutes.
+**Use 18** (`postgres:18`, which tracks the latest minor release). It's the newest production release, gives the longest support window you can get today, and has a native `uuidv7()` function that matches the ID strategy in §3. Plan a move to 19 after its first couple of minor releases. At this data size a `pg_dump`/restore upgrade takes minutes.
 
-> **Docker gotcha for 18+:** the official image now mounts its volume at
-> `/var/lib/postgresql`, not `/var/lib/postgresql/data` (`PGDATA` is
-> `/var/lib/postgresql/18/docker`). If you mount the old path, data silently goes into an
-> anonymous volume and is lost when the container is recreated.
+> **Docker gotcha for 18+:** the official image now mounts its volume at `/var/lib/postgresql`, not `/var/lib/postgresql/data` (`PGDATA` is `/var/lib/postgresql/18/docker`). If you mount the old path, data silently goes into an anonymous volume and is lost when the container is recreated.
 
 ---
 
 ## 3. Data model
 
-Unless noted otherwise, every table has `id uuid` (UUIDv7: generated in Python with
-`uuid.uuid7()` so IDs exist before flush, with a `server_default uuidv7()` fallback),
-`created_at`, and `updated_at`.
+Unless noted otherwise, every table has `id uuid` (UUIDv7: generated in Python with `uuid.uuid7()` so IDs exist before flush, with a `server_default uuidv7()` fallback), `created_at`, and `updated_at`.
 
 ### `editor`
 | Column | Type | Notes |
@@ -211,13 +182,9 @@ Unique `(tour_id, id)` so `node` can reference it with a composite FK (below).
 | `from_node_id`, `to_node_id` | fk | unique pair; check `from <> to` |
 | `yaw_override` | float nullable | usually null; derive from map geometry |
 
-> Arrow positions can be **computed** from `map_x/map_y` + `sphere_pan` rather than
-> authored. Only override where the computed direction is wrong (e.g. through a wall).
-> This removes most of the tedium of hand-authoring links.
+> Arrow positions can be **computed** from `map_x/map_y` + `sphere_pan` rather than authored. Only override where the computed direction is wrong (e.g. through a wall). This removes most of the tedium of hand-authoring links.
 >
-> **Links between floors** (stairs, elevators) can't be computed, because the two nodes are on
-> different floorplan images. The import requires `yaw_override` whenever `from` and `to` are
-> on different floors.
+> **Links between floors** (stairs, elevators) can't be computed, because the two nodes are on different floorplan images. The import requires `yaw_override` whenever `from` and `to` are on different floors.
 
 ### `marker` — in-panorama annotations
 | Column | Type | Notes |
@@ -266,17 +233,13 @@ Append-only, so it has no `updated_at`. One row per node view by a viewer sessio
 | `node_slug` | text | copied at write time, so history still reads correctly after a prune |
 | `occurred_at` | timestamptz | server time, not client time |
 
-Indexes: `(access_code_id, occurred_at DESC)` for the activity view; `(tour_id, node_id)` for
-"who looked at this room".
+Indexes: `(access_code_id, occurred_at DESC)` for the activity view; `(tour_id, node_id)` for "who looked at this room".
 
 Rules:
 
 - **Viewers only.** Editor sessions never create events.
-- **Deduplicate on the server**: skip the insert if the same session logged the same node
-  within the last 60 s. Flicking back and forth between nodes shouldn't create dozens of rows.
-- **Retention**: `ACCESS_EVENT_RETENTION_DAYS` (unset = keep forever) plus
-  `cli events prune`. This is personal, attributable browsing data, so pick a period on
-  purpose rather than defaulting to forever by accident.
+- **Deduplicate on the server**: skip the insert if the same session logged the same node within the last 60 s. Flicking back and forth between nodes shouldn't create dozens of rows.
+- **Retention**: `ACCESS_EVENT_RETENTION_DAYS` (unset = keep forever) plus `cli events prune`. This is personal, attributable browsing data, so pick a period on purpose rather than defaulting to forever by accident.
 - **Disclosure**: the unlock page says that access is logged per code.
 
 ### `editor_session`
@@ -288,9 +251,7 @@ Same shape as `access_session` but keyed to `editor_id`.
 
 ### Two principals, one mechanism
 
-Both editors and viewers get an **opaque, DB-backed session token** in an HttpOnly cookie.
-No JWTs. With one server and a small table, a DB row gives instant revocation plus
-`last_seen_at` for free. Stateless tokens would add nothing here and would cost you revocation.
+Both editors and viewers get an **opaque, DB-backed session token** in an HttpOnly cookie. No JWTs. With one server and a small table, a DB row gives instant revocation plus `last_seen_at` for free. Stateless tokens would add nothing here and would cost you revocation.
 
 | | Editor | Viewer |
 |---|---|---|
@@ -310,9 +271,7 @@ k7f3q2xa-9BqR2xLmWvN8dY4pKt3s
 ```
 
 - Generate with `secrets.token_urlsafe`; secret must carry ≥128 bits of entropy.
-- **The prefix exists so you can look the row up.** If you hash the whole code you cannot
-  find it without scanning and hashing every row in the table. Same pattern as GitHub /
-  Stripe tokens.
+- **The prefix exists so you can look the row up.** If you hash the whole code you cannot find it without scanning and hashing every row in the table. Same pattern as GitHub / Stripe tokens.
 - Display the full code **once**, at creation time. Store only the hash.
 
 ### Unlock flow
@@ -322,34 +281,18 @@ k7f3q2xa-9BqR2xLmWvN8dY4pKt3s
 3. Check `revoked_at IS NULL` and `expires_at`.
 4. Create `access_session`, set HttpOnly cookie, return the tour slug.
 
-**Never accept the code as a query parameter.** It leaks into Referer headers, proxy logs
-and browser history. If you want one-click links, put it in the URL *fragment*
-(`https://host/t/building-a#code=k7f3q2xa-...`), which is never sent to the server; the SPA
-reads `location.hash`, POSTs it, then immediately calls
-`history.replaceState` to strip it.
+**Never accept the code as a query parameter.** It leaks into Referer headers, proxy logs and browser history. If you want one-click links, put it in the URL *fragment* (`https://host/t/building-a#code=k7f3q2xa-...`), which is never sent to the server; the SPA reads `location.hash`, POSTs it, then immediately calls `history.replaceState` to strip it.
 
 ### Hardening checklist
 
-- **Rate limit `/api/unlock`**: per-IP token bucket plus a global ceiling. A revocable code
-  that can be brute-forced is not revocable. An in-process limiter is fine (single instance);
-  reach for Redis only if you scale out.
-- **Find the real client IP.** On Coolify, requests pass through two proxies
-  (Coolify proxy → Caddy → api). If you get this wrong, every request seems to come from the
-  proxy and the per-IP limit turns into one global limit. Configure Caddy
-  `servers { trusted_proxies static <range> }`, with the range set by an env var
-  (`TRUSTED_PROXY_RANGES`, empty on vanilla), and run uvicorn with
-  `--proxy-headers --forwarded-allow-ips=<caddy's network>`. Write a test that sends a spoofed
-  `X-Forwarded-For` and checks it is ignored when it doesn't come from a trusted proxy.
-- **Constant-time comparison** on the prefix lookup result; return an identical error and
-  a similar response time for "no such prefix" and "wrong secret".
+- **Rate limit `/api/unlock`**: per-IP token bucket plus a global ceiling. A revocable code that can be brute-forced is not revocable. An in-process limiter is fine (single instance); reach for Redis only if you scale out.
+- **Find the real client IP.** On Coolify, requests pass through two proxies (Coolify proxy → Caddy → api). If you get this wrong, every request seems to come from the proxy and the per-IP limit turns into one global limit. Configure Caddy `servers { trusted_proxies static <range> }`, with the range set by an env var (`TRUSTED_PROXY_RANGES`, empty on vanilla), and run uvicorn with `--proxy-headers --forwarded-allow-ips=<caddy's network>`. Write a test that sends a spoofed `X-Forwarded-For` and checks it is ignored when it doesn't come from a trusted proxy.
+- **Constant-time comparison** on the prefix lookup result; return an identical error and a similar response time for "no such prefix" and "wrong secret".
 - **Cookies**: `HttpOnly; Secure; SameSite=Lax; Path=/`.
-- **CSRF**: `SameSite=Lax` covers the common cases, but add a double-submit CSRF token for
-  all editor mutations. Reject state-changing requests without `Content-Type: application/json`.
-- **Argon2id params**: use `argon2-cffi` defaults or stronger; unlock is rare so cost is free.
-  (Tests use cheap parameters through settings; one test asserts the production defaults.)
+- **CSRF**: `SameSite=Lax` covers the common cases, but add a double-submit CSRF token for all editor mutations. Reject state-changing requests without `Content-Type: application/json`.
+- **Argon2id params**: use `argon2-cffi` defaults or stronger; unlock is rare so cost is free. (Tests use cheap parameters through settings; one test asserts the production defaults.)
 - **Session rotation**: issue a fresh token on privilege change; delete on logout.
-- **`last_seen_at` throttling**: update at most once per minute per session, otherwise a
-  single tour visit writes hundreds of times.
+- **`last_seen_at` throttling**: update at most once per minute per session, otherwise a single tour visit writes hundreds of times.
 - **Security headers** (set in Caddy):
   ```
   Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -357,8 +300,7 @@ reads `location.hash`, POSTs it, then immediately calls
   Referrer-Policy "no-referrer"
   Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'"
   ```
-  `img-src` needs `blob:` and `data:` because three.js builds textures from blobs.
-  Verify the CSP against a real panorama load before locking it down.
+  `img-src` needs `blob:` and `data:` because three.js builds textures from blobs. Verify the CSP against a real panorama load before locking it down.
 
 ---
 
@@ -377,8 +319,7 @@ reads `location.hash`, POSTs it, then immediately calls
 
 ### Serving through Caddy `forward_auth`
 
-Media goes through Caddy `forward_auth` from the start (M2). There's no interim FastAPI
-`FileResponse` route: it would need full test coverage only to be deleted later.
+Media goes through Caddy `forward_auth` from the start (M2). There's no interim FastAPI `FileResponse` route: it would need full test coverage only to be deleted later.
 
 ```caddyfile
 {
@@ -413,14 +354,9 @@ Media goes through Caddy `forward_auth` from the start (M2). There's no interim 
 }
 ```
 
-`forward_auth` reissues the request to your endpoint with the original cookies, so the
-existing session dependency works unchanged. Return `204` to allow, `403` to deny.
+`forward_auth` reissues the request to your endpoint with the original cookies, so the existing session dependency works unchanged. Return `204` to allow, `403` to deny.
 
-**Watch the subrequest volume.** Every media request triggers an auth call. That's fine for
-whole-JPEG panoramas. If you later tile for multi-resolution, one node view becomes dozens
-of tile fetches and therefore dozens of auth calls. To mitigate, authorise per node prefix
-and cache the decision in-process for a short TTL. (nginx's `auth_request` behaves the same
-way; this isn't a Caddy limitation.)
+**Watch the subrequest volume.** Every media request triggers an auth call. That's fine for whole-JPEG panoramas. If you later tile for multi-resolution, one node view becomes dozens of tile fetches and therefore dozens of auth calls. To mitigate, authorise per node prefix and cache the decision in-process for a short TTL. (nginx's `auth_request` behaves the same way; this isn't a Caddy limitation.)
 
 Always set `Cache-Control: private` so no shared cache retains confidential imagery.
 
@@ -475,13 +411,11 @@ Always set `Cache-Control: private` so no shared cache retains confidential imag
 }
 ```
 
-A link is either a slug (direction computed from the map) or `{ "to", "yaw" }`. The object
-form is required when the target is on a different floor.
+A link is either a slug (direction computed from the map) or `{ "to", "yaw" }`. The object form is required when the target is on a different floor.
 
 ### CLI
 
-`exec` into the running `api` container. This works the same on both hosts; on Coolify, use
-the `api` service's **Terminal** tab and drop the `docker compose exec api` prefix.
+`exec` into the running `api` container. This works the same on both hosts; on Coolify, use the `api` service's **Terminal** tab and drop the `docker compose exec api` prefix.
 
 ```bash
 docker compose exec api python -m app.cli import /data/import/tour.json
@@ -498,35 +432,20 @@ docker compose exec api python -m app.cli editor create --email you@example.com
 
 **Import behaviour**
 
-- Validate the whole file with Pydantic before touching the DB, and report every error at once.
-  Beyond field types, validate across records: every `node.floor` exists, `map.x/y` fall
-  inside that floor's image dimensions, link targets exist, links between floors have a
-  `yaw`, and `default_node`s exist and sit on the right floor.
+- Validate the whole file with Pydantic before touching the DB, and report every error at once. Beyond field types, validate across records: every `node.floor` exists, `map.x/y` fall inside that floor's image dimensions, link targets exist, links between floors have a `yaw`, and `default_node`s exist and sit on the right floor.
 - Upsert by slug. Re-running must be safe and idempotent.
-- Nodes absent from the file are *reported*, not deleted, unless `--prune`. Pruning keeps the
-  `access_event` history (FK set to null; `node_slug` stays).
+- Nodes absent from the file are *reported*, not deleted, unless `--prune`. Pruning keeps the `access_event` history (FK set to null; `node_slug` stays).
 - Wrap the whole import in one transaction.
 
 **Image processing on import (GoPro Max 2 JPG)**
 
-1. **Check the input.** Accept only JPEG (check the file's magic bytes, not just the
-   extension). Reject anything that isn't 2:1. Warn if a 2:1 image isn't 7680×3840, since that
-   usually means a different camera mode or an image that was already processed.
+1. **Check the input.** Accept only JPEG (check the file's magic bytes, not just the extension). Reject anything that isn't 2:1. Warn if a 2:1 image isn't 7680×3840, since that usually means a different camera mode or an image that was already processed.
 2. **Read what you need from EXIF first**: `DateTimeOriginal` → `captured_at`.
-3. **Strip all EXIF/XMP, especially GPS.** The Max 2 has GPS and embeds location when it's
-   enabled. Given that the whole point is confidentiality, this matters. Add a test that runs a
-   fixture JPG with fake GPS through the pipeline and asserts no GPS tags remain.
-4. **Heading metadata: check before relying on it.** Some 360 cameras write XMP
-   `PoseHeadingDegrees`, which could seed `sphere_pan`. It isn't confirmed that the Max 2 does.
-   Run `exiftool -G1 -a -xmp:all -exif:all pano.jpg` on a real sample in M1 and decide then.
-   Until then, `sphere_pan` comes from the alignment helper (§7).
+3. **Strip all EXIF/XMP, especially GPS.** The Max 2 has GPS and embeds location when it's enabled. Given that the whole point is confidentiality, this matters. Add a test that runs a fixture JPG with fake GPS through the pipeline and asserts no GPS tags remain.
+4. **Heading metadata: check before relying on it.** Some 360 cameras write XMP `PoseHeadingDegrees`, which could seed `sphere_pan`. It isn't confirmed that the Max 2 does. Run `exiftool -G1 -a -xmp:all -exif:all pano.jpg` on a real sample in M1 and decide then. Until then, `sphere_pan` comes from the alignment helper (§7).
 5. Generate a ~400px-wide thumbnail for the gallery.
-6. **Downscale 7680×3840 → 6144×3072 by default** (`--max-width`), re-encoding at quality ~90.
-   A full-size Max 2 frame is a ~118 MB RGBA texture, which is a lot for mobile browsers
-   (see §12).
-7. Set `Image.MAX_IMAGE_PIXELS` explicitly (e.g. 40 M). A Max 2 frame is 29.5 M pixels, which
-   is already under Pillow's default guard. The explicit lower limit is a guardrail: an
-   unexpectedly huge file fails loudly instead of being processed.
+6. **Downscale 7680×3840 → 6144×3072 by default** (`--max-width`), re-encoding at quality ~90. A full-size Max 2 frame is a ~118 MB RGBA texture, which is a lot for mobile browsers (see §12).
+7. Set `Image.MAX_IMAGE_PIXELS` explicitly (e.g. 40 M). A Max 2 frame is 29.5 M pixels, which is already under Pillow's default guard. The explicit lower limit is a guardrail: an unexpectedly huge file fails loudly instead of being processed.
 
 ---
 
@@ -539,25 +458,19 @@ Every node needs three hand-set numbers:
 | `map_x`, `map_y` | click the right spot on the floorplan | No — you know where you stood |
 | `sphere_pan` | rotate until the panorama's north matches the floorplan | **No — must be eyeballed** (unless §6 step 4 finds usable heading metadata) |
 
-`sphere_pan` is the expensive one. It can't be computed (no GPS indoors, and no compass you
-can trust there). If it's wrong, every navigation arrow and the map's viewing-direction cone
-point the wrong way. That's immediately obvious and deeply annoying.
+`sphere_pan` is the expensive one. It can't be computed (no GPS indoors, and no compass you can trust there). If it's wrong, every navigation arrow and the map's viewing-direction cone point the wrong way. That's immediately obvious and deeply annoying.
 
 ### Alignment helper — ~150 lines, half a day
 
 A dev-only mode in the viewer, gated behind an editor session:
 
 - `?align=1` enables it.
-- Arrow keys nudge `sphereCorrection.pan` for the current node (Shift = coarse, plain = fine),
-  live, with the map's direction cone visible so you can see when it's right.
+- Arrow keys nudge `sphereCorrection.pan` for the current node (Shift = coarse, plain = fine), live, with the map's direction cone visible so you can see when it's right.
 - Clicking the floorplan sets `map_x/map_y` for the current node (on the current node's floor).
-- A floating panel shows the current values and a **Copy JSON patch** button. To write every
-  node back at once, `cli export-placements` merges DB placements into `tour.json` (M4 D1).
+- A floating panel shows the current values and a **Copy JSON patch** button. To write every node back at once, `cli export-placements` merges DB placements into `tour.json` (M4 D1).
 - `n` / `p` step to the next/previous node (in floor order, then gallery order).
 
-This turns a ~3-minute-per-node chore into a ~20-second one. Over 100 nodes that's the
-difference between a lost weekend and an afternoon. It is also the core interaction of the
-eventual placement GUI, so you build it once and reuse it.
+This turns a ~3-minute-per-node chore into a ~20-second one. Over 100 nodes that's the difference between a lost weekend and an afternoon. It is also the core interaction of the eventual placement GUI, so you build it once and reuse it.
 
 ---
 
@@ -570,15 +483,12 @@ eventual placement GUI, so you build it once and reuse it.
 - `GET  /api/session` → current principal + capabilities
 
 ### Viewer (session required)
-- `GET  /api/tours/{slug}` → PSV-ready payload: floors, nodes, links, markers, media URLs,
-  descriptions as sanitised `description_html`
-- `POST /api/tours/{slug}/nodes/{node}/viewed` → `204`; records an `access_event` (deduplicated,
-  viewer sessions only; editors get `204` and nothing is written)
+- `GET  /api/tours/{slug}` → PSV-ready payload: floors, nodes, links, markers, media URLs, descriptions as sanitised `description_html`
+- `POST /api/tours/{slug}/nodes/{node}/viewed` → `204`; records an `access_event` (deduplicated, viewer sessions only; editors get `204` and nothing is written)
 
 ### Editor
 - `POST /api/auth/login`, `POST /api/auth/logout`
-- *(M6, with the GUI; not v1)* `GET/POST/PATCH/DELETE /api/admin/tours|floors|nodes|markers|links`.
-  In v1, content is authored only through `tour.json` import.
+- *(M6, with the GUI; not v1)* `GET/POST/PATCH/DELETE /api/admin/tours|floors|nodes|markers|links`. In v1, content is authored only through `tour.json` import.
 - `GET/POST /api/admin/access-codes`, `POST /api/admin/access-codes/{id}/revoke`
 - `GET /api/admin/access-codes/{id}/activity` → sessions + node-level events, paginated
 - `GET /api/admin/tours/{slug}/activity?node=` → who viewed which nodes, when
@@ -587,9 +497,7 @@ eventual placement GUI, so you build it once and reuse it.
 ### Internal
 - `GET /api/internal/media-auth` → 204/403 for Caddy `forward_auth`
 
-Design `GET /api/tours/{slug}` to return something the frontend can hand almost directly to
-the Virtual Tour plugin's `setNodes()`. Keep the shape-shifting on the server; it's also where
-the 100% coverage requirement makes it cheapest to test.
+Design `GET /api/tours/{slug}` to return something the frontend can hand almost directly to the Virtual Tour plugin's `setNodes()`. Keep the shape-shifting on the server; it's also where the 100% coverage requirement makes it cheapest to test.
 
 ---
 
@@ -620,17 +528,10 @@ Key configuration points:
 
 - `withCredentials: true` on the Viewer so media requests carry the session cookie.
 - `sphereCorrection: { pan: node.sphere_pan }` per node.
-- **Multi-floor**: on `node-changed`, if the floor changed, call the Map plugin's `setImage()`
-  and replace hotspots with that floor's nodes. The floor switcher jumps to
-  `floor.default_node`. Build this in M3; don't add it later.
-- Floorplan hotspots are the **primary** navigation and arrow links are a convenience, so
-  you don't need a dense link graph. Links between floors are the exception: they're the only
-  way to change floors without the switcher.
-- **Descriptions**: the API renders Markdown to HTML (raw HTML disabled, then `nh3` as a second
-  layer of defence) and returns `description_html`. The frontend puts it in the PSV side panel.
-  The frontend never parses Markdown, so the sanitiser runs, and is tested, in one place.
-- **Activity**: on `node-changed`, `fetch(POST …/viewed, { keepalive: true })`, fire-and-forget
-  so a slow or failed request never blocks navigation.
+- **Multi-floor**: on `node-changed`, if the floor changed, call the Map plugin's `setImage()` and replace hotspots with that floor's nodes. The floor switcher jumps to `floor.default_node`. Build this in M3; don't add it later.
+- Floorplan hotspots are the **primary** navigation and arrow links are a convenience, so you don't need a dense link graph. Links between floors are the exception: they're the only way to change floors without the switcher.
+- **Descriptions**: the API renders Markdown to HTML (raw HTML disabled, then `nh3` as a second layer of defence) and returns `description_html`. The frontend puts it in the PSV side panel. The frontend never parses Markdown, so the sanitiser runs, and is tested, in one place.
+- **Activity**: on `node-changed`, `fetch(POST …/viewed, { keepalive: true })`, fire-and-forget so a slow or failed request never blocks navigation.
 
 ### Performance
 
@@ -723,22 +624,13 @@ exclude_also = [
 ]
 ```
 
-CI runs `uv run pytest --cov --cov-report=term-missing` and fails below 100%. On Python 3.14,
-coverage.py defaults to the `sys.monitoring` core, which supports branch measurement and has
-much lower overhead than the old trace-function approach. So the gate doesn't have to make
-the suite slow.
+CI runs `uv run pytest --cov --cov-report=term-missing` and fails below 100%. On Python 3.14, coverage.py defaults to the `sys.monitoring` core, which supports branch measurement and has much lower overhead than the old trace-function approach. So the gate doesn't have to make the suite slow.
 
 **Rules that keep 100% honest**
 
-- `# pragma: no cover` needs a comment on the same line explaining why, and CI shows the count
-  (`grep -rc "pragma: no cover" app/`) so any increase is visible in review. The
-  `exclude_also` list stays short and gets reviewed like code.
-- Coverage is the floor, not the goal. Security branches (expired vs revoked vs wrong secret,
-  CSRF missing vs mismatched, dedupe window edges) each get a test that **asserts the
-  behaviour**, not one that just runs the line.
-- Migration files live in `alembic/`, outside `app/`, so they don't count toward coverage.
-  `tests/migrations/` still runs every one of them (up, down, up) and runs `alembic check`
-  so models and migrations can't drift apart.
+- `# pragma: no cover` needs a comment on the same line explaining why, and CI shows the count (`grep -rc "pragma: no cover" app/`) so any increase is visible in review. The `exclude_also` list stays short and gets reviewed like code.
+- Coverage is the floor, not the goal. Security branches (expired vs revoked vs wrong secret, CSRF missing vs mismatched, dedupe window edges) each get a test that **asserts the behaviour**, not one that just runs the line.
+- Migration files live in `alembic/`, outside `app/`, so they don't count toward coverage. `tests/migrations/` still runs every one of them (up, down, up) and runs `alembic check` so models and migrations can't drift apart.
 
 **How the hard parts get tested**
 
@@ -756,10 +648,7 @@ the suite slow.
 | CLI | Invoked in-process (e.g. Typer's `CliRunner` or calling `main(argv)`) so its lines count toward coverage. Covers `--dry-run`, `--prune`, and aggregated validation errors. |
 | Config | Missing secrets and secrets left at `.env.example` values each raise at startup. |
 
-**Frontend**: Vitest for the logic that has branches (payload → PSV node transform, floor
-switching, `#code=` fragment handling). A Playwright smoke suite runs against
-`docker compose up`: unlock → panorama renders → floor switch → `/media/*` returns 403 without
-a cookie. No coverage target.
+**Frontend**: Vitest for the logic that has branches (payload → PSV node transform, floor switching, `#code=` fragment handling). A Playwright smoke suite runs against `docker compose up`: unlock → panorama renders → floor switch → `/media/*` returns 403 without a cookie. No coverage target.
 
 ### 10.3 Compose: one file for Coolify and vanilla Docker
 
@@ -771,22 +660,11 @@ a cookie. No coverage target.
 
 **Rules for keeping one file portable**
 
-- **No published ports in `docker-compose.yml`.** Coolify's docs say publishing ports bypasses
-  its proxy. Vanilla adds them in `docker-compose.selfhost.yml` (`80:80`, `443:443`, `443:443/udp`,
-  plus a `caddy_data` volume for certificates). Set
-  `COMPOSE_FILE=docker-compose.yml:docker-compose.selfhost.yml` in the vanilla `.env`, so plain
-  `docker compose up -d` still works.
-- **No Coolify-specific keys** (`exclude_from_hc`, `is_directory`, `content:`). They aren't part
-  of the Compose spec.
-- **No one-shot containers.** Migrations run in the `api` entrypoint and the SPA is baked into the
-  Caddy image. This avoids Coolify health-status problems with containers that exit, and
-  avoids `exclude_from_hc`.
-- **Healthchecks on every service.** Coolify uses them for status; Compose uses them for
-  `depends_on`. Use tools that exist in each image (`pg_isready`; `python -c "urllib…"` in the
-  slim image; `wget` in Caddy's Alpine image).
-- **Required variables use `${VAR:?}`.** Both Coolify and Compose refuse to deploy when they're
-  missing. Don't rely on Coolify's `SERVICE_PASSWORD_*` magic variables, which do nothing on
-  vanilla. Set the values explicitly in Coolify's environment UI instead.
+- **No published ports in `docker-compose.yml`.** Coolify's docs say publishing ports bypasses its proxy. Vanilla adds them in `docker-compose.selfhost.yml` (`80:80`, `443:443`, `443:443/udp`, plus a `caddy_data` volume for certificates). Set `COMPOSE_FILE=docker-compose.yml:docker-compose.selfhost.yml` in the vanilla `.env`, so plain `docker compose up -d` still works.
+- **No Coolify-specific keys** (`exclude_from_hc`, `is_directory`, `content:`). They aren't part of the Compose spec.
+- **No one-shot containers.** Migrations run in the `api` entrypoint and the SPA is baked into the Caddy image. This avoids Coolify health-status problems with containers that exit, and avoids `exclude_from_hc`.
+- **Healthchecks on every service.** Coolify uses them for status; Compose uses them for `depends_on`. Use tools that exist in each image (`pg_isready`; `python -c "urllib…"` in the slim image; `wget` in Caddy's Alpine image).
+- **Required variables use `${VAR:?}`.** Both Coolify and Compose refuse to deploy when they're missing. Don't rely on Coolify's `SERVICE_PASSWORD_*` magic variables, which do nothing on vanilla. Set the values explicitly in Coolify's environment UI instead.
 - **Behaviour that differs between hosts comes from env vars only**:
 
 | Variable | Vanilla | Coolify |
@@ -796,29 +674,14 @@ a cookie. No coverage target.
 | `IMPORT_HOST_PATH` | `./samples` for the sample tour, or any host path | absolute host path, e.g. `/srv/pano/import` |
 | Domain | DNS A record → host; Caddy gets the cert | set `https://tour.example.com:80` on the `caddy` service in Coolify |
 
-- **Import directory.** On Coolify, relative bind mounts resolve under
-  `/data/coolify/applications/<uuid>/`, and repository files are only there if "Preserve
-  Repository During Deployment" is on. Rather than depend on that, bind-mount
-  `${IMPORT_HOST_PATH}` and copy the production tour folder (`tour.json`, photos, floorplans) to
-  that path on the server. Production tour data never has to be in this repo.
-- **Named volumes** get a resource prefix on Coolify, so scripts must never hardcode volume
-  names. Backups go through `docker compose exec db pg_dump` and through the running `api`
-  container's media mount.
+- **Import directory.** On Coolify, relative bind mounts resolve under `/data/coolify/applications/<uuid>/`, and repository files are only there if "Preserve Repository During Deployment" is on. Rather than depend on that, bind-mount `${IMPORT_HOST_PATH}` and copy the production tour folder (`tour.json`, photos, floorplans) to that path on the server. Production tour data never has to be in this repo.
+- **Named volumes** get a resource prefix on Coolify, so scripts must never hardcode volume names. Backups go through `docker compose exec db pg_dump` and through the running `api` container's media mount.
 
-**Dev override**: Vite dev server on 5173 with `server.proxy` pointing `/api` and `/media` at
-the API container, so cookies stay same-origin during development. Postgres published on
-localhost for inspection.
+**Dev override**: Vite dev server on 5173 with `server.proxy` pointing `/api` and `/media` at the API container, so cookies stay same-origin during development. Postgres published on localhost for inspection.
 
-**Secrets**: `POSTGRES_PASSWORD`, `SESSION_SECRET`, plus the env vars in the table above. Never
-bake them into an image. `config.py` fails fast at startup if any are missing or still at
-their `.env.example` values (and a test proves it).
+**Secrets**: `POSTGRES_PASSWORD`, `SESSION_SECRET`, plus the env vars in the table above. Never bake them into an image. `config.py` fails fast at startup if any are missing or still at their `.env.example` values (and a test proves it).
 
-**Backups**: `pg_dump` on a cron plus a tar of the media volume. The import directory
-(production `tour.json`, photos, floorplans) is the real source of truth for content, so back it
-up wherever it lives. A private git repo is a good home for the production `tour.json`, but it
-isn't required and it doesn't belong in this repo.
-`access_event` exists **only** in the database, so if you want activity history to survive,
-the DB backup isn't optional.
+**Backups**: `pg_dump` on a cron plus a tar of the media volume. The import directory (production `tour.json`, photos, floorplans) is the real source of truth for content, so back it up wherever it lives. A private git repo is a good home for the production `tour.json`, but it isn't required and it doesn't belong in this repo. `access_event` exists **only** in the database, so if you want activity history to survive, the DB backup isn't optional.
 
 ---
 
@@ -836,8 +699,7 @@ You asked for a real estimate, so here it is.
 | **Per node** | **~40s** | **~3.8 min** |
 | **100 nodes** | **~1.2 h** | **~6.5 h** |
 
-Add iteration: you will redo perhaps 20% of nodes after seeing them in context. Call it
-**~1.5 hours with the helper**, ~8 hours without.
+Add iteration: you will redo perhaps 20% of nodes after seeing them in context. Call it **~1.5 hours with the helper**, ~8 hours without.
 
 ### Cost of building the full GUI
 
@@ -856,26 +718,15 @@ Add iteration: you will redo perhaps 20% of nodes after seeing them in context. 
 
 **Build the alignment helper (0.5 d), skip the GUI (5–6.5 d), for now.**
 
-The helper removes roughly 80% of the manual pain for roughly 8% of the GUI's cost. The GUI
-starts paying for itself somewhere around 4–5 buildings of this size, or the first time
-someone other than you has to author content.
+The helper removes roughly 80% of the manual pain for roughly 8% of the GUI's cost. The GUI starts paying for itself somewhere around 4–5 buildings of this size, or the first time someone other than you has to author content.
 
 Three further arguments for the JSON-first approach in your specific situation:
 
-1. **It's diffable and reproducible.** A GUI that edits rows directly *loses* that property
-   unless you also build the export path. That's why "export back to `tour.json`" is in the
-   table above. JSON-first gets it for free.
-2. **The forms aren't the hard part; the canvas is.** Upload widgets and description fields are
-   commodity work. The floorplan canvas with draggable pins and the in-panorama marker placer
-   are real interaction design, and they're where the estimate could double if you're a
-   perfectionist about it.
-3. **The helper is the GUI's seed.** Its click-to-place and nudge-to-align interactions are
-   exactly what the canvas needs. When you do build the GUI, you'll be wrapping working code in
-   an admin shell rather than starting cold.
+1. **It's diffable and reproducible.** A GUI that edits rows directly *loses* that property unless you also build the export path. That's why "export back to `tour.json`" is in the table above. JSON-first gets it for free.
+2. **The forms aren't the hard part; the canvas is.** Upload widgets and description fields are commodity work. The floorplan canvas with draggable pins and the in-panorama marker placer are real interaction design, and they're where the estimate could double if you're a perfectionist about it.
+3. **The helper is the GUI's seed.** Its click-to-place and nudge-to-align interactions are exactly what the canvas needs. When you do build the GUI, you'll be wrapping working code in an admin shell rather than starting cold.
 
-**Revisit the GUI when** any of these becomes true: a second building, a non-technical author,
-frequent re-shoots of the same space, or you find yourself editing `tour.json` more than once
-a month.
+**Revisit the GUI when** any of these becomes true: a second building, a non-technical author, frequent re-shoots of the same space, or you find yourself editing `tour.json` more than once a month.
 
 ---
 
@@ -903,49 +754,37 @@ a month.
 
 ## 13. Execution order
 
-Suited to incremental work in Claude Code; each milestone ends somewhere runnable, **with the
-API at 100% coverage**. Holding the gate from the first commit costs much less than
-retrofitting it.
+Suited to incremental work in Claude Code; each milestone ends somewhere runnable, **with the API at 100% coverage**. Holding the gate from the first commit costs much less than retrofitting it.
 
 **M0 — Skeleton (1 d)**
-Compose file (caddy, api, db) + selfhost/dev overrides, Caddyfile with `SITE_ADDRESS`,
-`/api/healthz`, Alembic initialised, "hello" SPA baked into the Caddy image. pytest +
-testcontainers + coverage gate running in CI. **Deploy to both**: vanilla over HTTPS, and a
-Coolify test app. Confirm Postgres data survives a container recreate on both.
+
+Compose file (caddy, api, db) + selfhost/dev overrides, Caddyfile with `SITE_ADDRESS`, `/api/healthz`, Alembic initialised, "hello" SPA baked into the Caddy image. pytest + testcontainers + coverage gate running in CI. **Deploy to both**: vanilla over HTTPS, and a Coolify test app. Confirm Postgres data survives a container recreate on both.
 
 **M1 — Data + import (1.5–2 d)**
-All models (including `access_event`) and migrations, plus migration tests. `tour.json` schema
-with checks across records for multiple floors. Import CLI with `--dry-run`/`--prune`. Image
-pipeline: JPEG/2:1 check, EXIF read-then-strip, thumbnail, downscale. Inspect a real Max 2 JPG
-with `exiftool`. Commit and import the non-confidential sample tour (4–6 nodes across **two floors**).
+
+All models (including `access_event`) and migrations, plus migration tests. `tour.json` schema with checks across records for multiple floors. Import CLI with `--dry-run`/`--prune`. Image pipeline: JPEG/2:1 check, EXIF read-then-strip, thumbnail, downscale. Inspect a real Max 2 JPG with `exiftool`. Commit and import the non-confidential sample tour (4–6 nodes across **two floors**).
 
 **M2 — Auth (1.5–2 d)**
-Argon2 hashing, session tables, editor login, access-code create/list/revoke CLI, unlock
-endpoint, cookie handling, CSRF, rate limiting with trusted-proxy handling,
-`/api/internal/media-auth` behind Caddy `forward_auth`. Verify with curl that media 403s
-without a cookie, both directly and through Coolify's proxy.
+
+Argon2 hashing, session tables, editor login, access-code create/list/revoke CLI, unlock endpoint, cookie handling, CSRF, rate limiting with trusted-proxy handling, `/api/internal/media-auth` behind Caddy `forward_auth`. Verify with curl that media 403s without a cookie, both directly and through Coolify's proxy.
 
 **M3 — Viewer (1.5–2 d)**
-`GET /api/tours/{slug}` returning a PSV-ready payload with rendered Markdown. React viewer with
-Virtual Tour + Map + Markers + Gallery + floor switcher. Unlock page including `#code=`
-fragment handling and the logging notice. `POST …/viewed` recording deduplicated `access_event`s.
-Playwright smoke test. This is the first demo-able build.
+
+`GET /api/tours/{slug}` returning a PSV-ready payload with rendered Markdown. React viewer with Virtual Tour + Map + Markers + Gallery + floor switcher. Unlock page including `#code=` fragment handling and the logging notice. `POST …/viewed` recording deduplicated `access_event`s. Playwright smoke test. This is the first demo-able build.
 
 **M4 — Alignment helper (0.5 d)**
-`?align=1` mode, nudge + click-to-place, JSON patch copy, `POST /placement`, `cli export-placements`.
-**Then align all your real nodes.**
+
+`?align=1` mode, nudge + click-to-place, JSON patch copy, `POST /placement`, `cli export-placements`. **Then align all your real nodes.**
 
 **M5 — Hardening (1 d)**
-Security headers, CSP verified against a real panorama load, admin access-code and
-activity views (per code and per node), `events prune` + retention setting, backup script,
-error pages.
+
+Security headers, CSP verified against a real panorama load, admin access-code and activity views (per code and per node), `events prune` + retention setting, backup script, error pages.
 
 **M6 — Admin GUI (later, 5–6.5 d + tests)**
+
 Only when §11's crossover conditions are met.
 
-**Realistic total to a usable, secured tour: 7–8.5 days of focused work**, or a few weekends.
-That's about 2 days more than the first draft, spent on the 100% coverage gate, multi-floor
-navigation, activity logging, and checking deploys on both hosts.
+**Realistic total to a usable, secured tour: 7–8.5 days of focused work**, or a few weekends. That's about 2 days more than the first draft, spent on the 100% coverage gate, multi-floor navigation, activity logging, and checking deploys on both hosts.
 
 ---
 
@@ -978,6 +817,4 @@ Settled 2026-09-10:
 
 1. **Retention period for `access_event`**: 90 days, 1 year, or keep forever?
 2. **Does the Max 2 write usable heading metadata?** Answer by inspecting a real JPG in M1 (§6 step 4).
-3. **Coolify's Docker network range** for `TRUSTED_PROXY_RANGES`: read it from the server in M0
-   (`docker network inspect coolify`), or accept `private_ranges` if Caddy is never reachable
-   from other hosts on the private network.
+3. **Coolify's Docker network range** for `TRUSTED_PROXY_RANGES`: read it from the server in M0 (`docker network inspect coolify`), or accept `private_ranges` if Caddy is never reachable from other hosts on the private network.
