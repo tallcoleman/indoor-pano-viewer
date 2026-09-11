@@ -60,7 +60,7 @@ jobs:
       - name: Tests (100% line + branch coverage gate)
         run: uv run pytest
 
-      - name: Count "pragma: no cover"
+      - name: Count no-cover pragmas
         if: always()
         run: |
           count=$(grep -rn "pragma: no cover" app/ | wc -l | tr -d ' ')
